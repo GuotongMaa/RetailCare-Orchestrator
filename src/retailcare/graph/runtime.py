@@ -14,7 +14,8 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from retailcare.config import settings
-from retailcare.graph.agent import build_agent, system_message
+from retailcare.graph.agent import build_agent
+from retailcare.graph.prompts import system_for
 from retailcare.trace.logger import Trace, set_current
 
 _CKPT_PATH = "retailcare_checkpoints.db"
@@ -38,10 +39,13 @@ class Conversation:
     """thread_id identifies the durable ticket; reuse it to resume across sessions."""
 
     def __init__(self, user_id: str, model: str | None = None, auto_confirm: bool = False,
-                 trace: Trace | None = None, thread_id: str | None = None):
+                 trace: Trace | None = None, thread_id: str | None = None,
+                 guardrails: bool = True, policy_mode: str = "prompt"):
         self.user_id = user_id
         self.model = model or settings.model
         self.auto_confirm = auto_confirm
+        self.guardrails = guardrails          # L0 ablation: False
+        self.policy_mode = policy_mode         # "prompt" | "rag"
         self.trace = trace or Trace()
         self.thread_id = thread_id or self.trace.session_id
         self._started = False
@@ -58,13 +62,13 @@ class Conversation:
     def send(self, text: str) -> TurnResult:
         self.trace.log("message", "user", text=text)
         if not self._started:
-            msgs = [system_message(self.user_id), {"role": "user", "content": text}]
+            msgs = [system_for(self.policy_mode, self.user_id), {"role": "user", "content": text}]
             self._started = True
         else:
             msgs = [{"role": "user", "content": text}]
         return self._invoke({
             "messages": msgs, "user_id": self.user_id, "model": self.model,
-            "steps": 0, "meta": {"auto_confirm": self.auto_confirm},
+            "steps": 0, "meta": {"auto_confirm": self.auto_confirm, "guardrails": self.guardrails},
         })
 
     def confirm(self, decision) -> TurnResult:
