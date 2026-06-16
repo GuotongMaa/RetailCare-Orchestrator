@@ -1,0 +1,32 @@
+# ---- RetailCare Orchestrator pinned deps (Python 3.14 verified 2026-06-16) ----
+# Core LLM / orchestration
+litellm==1.83.7
+openai==2.30.0
+langgraph==1.2.5
+langgraph-checkpoint==4.1.1
+langgraph-checkpoint-sqlite==3.1.0
+langgraph-checkpoint-postgres==3.1.0
+
+# Tool contracts / API
+pydantic==2.12.5
+fastapi==0.137.1
+uvicorn==0.49.0
+
+# Data layer (PostgreSQL prod, SQLite fallback via SQLAlchemy)
+sqlalchemy==2.0.51
+psycopg2-binary==2.9.12
+
+# RAG (Chroma + built-in onnx embedding, no torch required)
+chromadb==1.5.9
+
+# Eval / stats
+numpy==2.4.6
+scipy==1.17.1
+
+# Tooling
+pytest==9.1.0
+ruff==0.15.17
+python-dotenv==1.0.1
+
+# ---- Optional (only if a local torch embedding is preferred over Chroma default) ----
+# sentence-transformers==5.6.0

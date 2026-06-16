@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # CI pins 3.12 (broad wheel support); dev verified on 3.14 too
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+      - name: Lint
+        run: ruff check src tests eval
+      - name: Unit tests (no real model calls)
+        run: python -m pytest
+        # NOTE: real DeepSeek calls (ping / full eval) are NOT run in CI by default
+        # to avoid cost + secret exposure. To enable, add DEEPSEEK_API_KEY as a repo
+        # secret and a gated job. The eval-regression gate (M3) runs a tiny cassette set.

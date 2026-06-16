@@ -1,0 +1,38 @@
+# ---- Secrets (NEVER commit) ----
+.env
+*.env
+.env.*
+!.env.example
+.claude/.env
+.claude/settings.local.json
+
+# ---- Python ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+
+# ---- Data / artifacts ----
+*.sqlite
+*.db
+data/*.db
+**/chroma_db/
+**/*.index
+trace_logs/
+eval_results/
+*.log
+
+# ---- OS / editor ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# ---- Node (web frontend) ----
+node_modules/
