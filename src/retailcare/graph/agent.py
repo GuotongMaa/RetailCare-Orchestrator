@@ -20,7 +20,8 @@ from retailcare.config import LLMResult, settings, usage
 from retailcare.graph.guardrails import guard_write
 from retailcare.graph.prompts import SYSTEM_L0
 from retailcare.graph.state import AgentState
-from retailcare.tools.registry import dispatch, openai_tools
+from retailcare.tools.recovery import call_with_recovery
+from retailcare.tools.registry import openai_tools
 from retailcare.trace.logger import Trace, get_current
 
 MAX_STEPS = 8
@@ -112,7 +113,7 @@ def tools_node(state: AgentState) -> dict:
         # execute: reads, escalate_to_human, or an approved/auto-confirmed write
         if tr:
             tr.tool_call(name, args)
-        result, err = dispatch(name, args)
+        result, err = call_with_recovery(name, args, trace=tr)
         if err:
             if tr:
                 tr.tool_error(name, err)
