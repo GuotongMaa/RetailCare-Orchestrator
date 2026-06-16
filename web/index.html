@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>RetailCare Orchestrator</title>
+<style>
+  :root { --bg:#0f1419; --panel:#1a2230; --acc:#4a86e8; --ok:#16a766; --warn:#ffad47; --err:#fb4c2f; --txt:#e6edf3; --mut:#8b98a5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--txt); }
+  header { padding:12px 18px; background:var(--panel); border-bottom:1px solid #2a3645; display:flex; gap:14px; align-items:center; }
+  header h1 { font-size:16px; margin:0; }
+  header .sub { color:var(--mut); font-size:12px; }
+  .wrap { display:grid; grid-template-columns: 1fr 1fr; gap:14px; padding:14px; height:calc(100vh - 54px); }
+  .col { background:var(--panel); border:1px solid #2a3645; border-radius:10px; display:flex; flex-direction:column; overflow:hidden; }
+  .col h2 { font-size:13px; margin:0; padding:10px 14px; color:var(--mut); border-bottom:1px solid #2a3645; text-transform:uppercase; letter-spacing:.05em; }
+  #log, #trace { flex:1; overflow-y:auto; padding:14px; }
+  .msg { margin:8px 0; padding:9px 12px; border-radius:10px; max-width:85%; white-space:pre-wrap; }
+  .user { background:var(--acc); margin-left:auto; }
+  .bot { background:#243044; }
+  .interrupt { background:#3a2f10; border:1px solid var(--warn); }
+  .controls { padding:12px; border-top:1px solid #2a3645; display:flex; gap:8px; }
+  input, select, button { font:inherit; border-radius:8px; border:1px solid #2a3645; background:#0d1117; color:var(--txt); padding:9px 11px; }
+  #text { flex:1; }
+  button { background:var(--acc); border:none; cursor:pointer; font-weight:600; }
+  button.ghost { background:#243044; }
+  .ev { font-family:ui-monospace,Menlo,monospace; font-size:12px; padding:6px 9px; margin:5px 0; border-radius:7px; background:#0d1117; border-left:3px solid var(--mut); }
+  .ev.tool_call { border-color:var(--acc); }
+  .ev.tool_result { border-color:var(--ok); }
+  .ev.tool_error, .ev.interrupt { border-color:var(--warn); }
+  .ev.decision { border-color:#a479e2; }
+  .ev .k { color:var(--mut); }
+  .summary { margin:6px 14px; padding:8px 11px; background:#0d2a1a; border:1px solid var(--ok); border-radius:8px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛍️ RetailCare Orchestrator</h1>
+  <span class="sub">evaluation-driven after-sales agent · HITL + trace</span>
+  <select id="user">
+    <option value="u1">u1 (O1001: t-shirt, gift-card)</option>
+    <option value="u2">u2 (O1002: mug, laptop $884)</option>
+    <option value="u4">u4 (O1004/5: headphones, monitor, jacket)</option>
+    <option value="u5">u5 (O1006/7: lamp, earbuds)</option>
+  </select>
+</header>
+<div class="wrap">
+  <div class="col">
+    <h2>Conversation</h2>
+    <div id="log"></div>
+    <div class="summary" id="summary">Ticket summary: —</div>
+    <div class="controls">
+      <input id="text" placeholder="e.g. Return item I1 in order O1001, wrong size" autofocus/>
+      <button id="send">Send</button>
+    </div>
+  </div>
+  <div class="col">
+    <h2>Trace</h2>
+    <div id="trace"></div>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+let threadId = null, pending = false;
+
+function add(cls, text){ const d=document.createElement('div'); d.className='msg '+cls; d.textContent=text; $('#log').appendChild(d); $('#log').scrollTop=1e9; }
+function renderTrace(events){
+  const t=$('#trace'); t.innerHTML='';
+  (events||[]).forEach(e=>{
+    const d=document.createElement('div'); d.className='ev '+e.kind;
+    const p=e.payload||{};
+    let detail = p.args? JSON.stringify(p.args) : p.result? JSON.stringify(p.result).slice(0,160) : p.action? (p.action+' '+(p.reason||'')) : p.error? p.error : (p.prompt||p.text||'');
+    d.innerHTML = `<span class="k">${e.kind}</span> · <b>${e.name}</b> ${detail? '· '+escapeHtml(String(detail)):''}`;
+    t.appendChild(d);
+  });
+  t.scrollTop=1e9;
+}
+function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function showSummary(s){ const parts=[]; for(const k of ['order_id','item_id','reason','eligibility','refund_amount','outcome','ticket_id']) if(s&&s[k]!=null) parts.push(k+'='+s[k]); $('#summary').textContent='Ticket summary: '+(parts.join(', ')||'—'); }
+
+async function fetchTrace(session){ const r=await fetch('/trace/'+session); const j=await r.json(); renderTrace(j.events); }
+
+async function send(){
+  const txt=$('#text').value.trim(); if(!txt) return; $('#text').value='';
+  if(pending){ // answering a HITL confirmation
+    add('user', txt);
+    const r=await fetch('/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({thread_id:threadId,user_id:$('#user').value,decision:txt})});
+    return handle(await r.json());
+  }
+  add('user', txt);
+  const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:$('#user').value,message:txt,thread_id:threadId})});
+  handle(await r.json());
+}
+function handle(j){
+  threadId=j.thread_id; pending=j.interrupted;
+  if(j.interrupted){ add('interrupt','🔐 '+(j.interrupt?.prompt||'Confirm? (yes/no)')); }
+  else if(j.reply){ add('bot', j.reply); }
+  showSummary(j.summary);
+  if(j.session) fetchTrace(j.session);
+}
+$('#send').onclick=send;
+$('#text').addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
+</script>
+</body>
+</html>

@@ -17,6 +17,7 @@ class RunConfig:
     guardrails: bool = True
     auto_confirm: bool = True
     policy_mode: str = "prompt"  # "prompt" | "rag"
+    model: str | None = None     # None -> settings.model (default weak/flash)
 
 
 def executed_tools(conv: Conversation) -> list[str]:
@@ -24,7 +25,7 @@ def executed_tools(conv: Conversation) -> list[str]:
 
 
 def run_task_once(task: dict, cfg: RunConfig) -> dict:
-    conv = Conversation(user_id=task["user_id"], auto_confirm=cfg.auto_confirm,
+    conv = Conversation(user_id=task["user_id"], model=cfg.model, auto_confirm=cfg.auto_confirm,
                         guardrails=cfg.guardrails, policy_mode=cfg.policy_mode)
     before = usage.snapshot()
     t0 = time.time()
