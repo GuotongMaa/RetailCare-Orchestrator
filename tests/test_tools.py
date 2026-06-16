@@ -80,6 +80,20 @@ def test_create_return_request_idempotent_on_order_item():
     assert b.deduped is True
 
 
+def test_get_order_reflects_return_status_after_ticket():
+    # before: no return status
+    o = impl.get_order(GetOrderIn(order_id="O1001"))
+    assert all(i.return_status is None for i in o.items)
+    # create a return for I1
+    impl.create_return_request(CreateReturnRequestIn(
+        order_id="O1001", item_id="I1", reason="wrong size", idempotency_key="rs1"))
+    # after: I1 shows return_requested, I2 unaffected
+    o2 = impl.get_order(GetOrderIn(order_id="O1001"))
+    by_id = {i.item_id: i.return_status for i in o2.items}
+    assert by_id["I1"] == "return_requested"
+    assert by_id["I2"] is None
+
+
 def test_create_return_request_rejects_ineligible():
     with pytest.raises(impl.ToolError):
         impl.create_return_request(CreateReturnRequestIn(order_id="O1001", item_id="I2", reason="x", idempotency_key="k3"))

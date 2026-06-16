@@ -25,6 +25,9 @@ class ItemView(BaseModel):
     qty: int = 1
     delivered_at: datetime | None = None
     returnable_until: datetime | None = None
+    # Derived from any return ticket for this (order_id, item_id):
+    # None | "return_requested" | "refunded" — keeps a follow-up status query fresh.
+    return_status: str | None = None
 
 
 # ----------------------------- read I/O -----------------------------

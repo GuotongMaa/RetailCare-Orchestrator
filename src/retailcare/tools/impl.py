@@ -52,9 +52,16 @@ def get_order(inp: GetOrderIn) -> OrderView:
         o = s.get(Order, inp.order_id)
         if not o:
             raise ToolError(f"order not found: {inp.order_id}")
+        # Reflect any return ticket so a follow-up status query isn't stale (tickets
+        # are the single source of truth for return state — not duplicated on the item).
+        ticket_status = {
+            t.item_id: ("refunded" if t.status == "refunded" else "return_requested")
+            for t in s.query(Ticket).filter(Ticket.order_id == inp.order_id).all()
+        }
         items = [ItemView(item_id=i.item_id, sku=i.sku, name=i.name, category=i.category,
                           price=i.price, qty=i.qty, delivered_at=i.delivered_at,
-                          returnable_until=i.returnable_until) for i in o.items]
+                          returnable_until=i.returnable_until,
+                          return_status=ticket_status.get(i.item_id)) for i in o.items]
         return OrderView(order_id=o.order_id, user_id=o.user_id, status=o.status,
                          currency=o.currency, total_amount=o.total_amount,
                          created_at=o.created_at, items=items)
