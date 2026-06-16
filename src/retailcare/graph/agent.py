@@ -71,7 +71,9 @@ def _tool_msg(tc_id: str, name: str, payload: dict) -> dict:
 
 def tools_node(state: AgentState) -> dict:
     tr = _trace(state)
-    auto_confirm = bool((state.get("meta") or {}).get("auto_confirm", False))
+    meta = state.get("meta") or {}
+    auto_confirm = bool(meta.get("auto_confirm", False))
+    guardrails = bool(meta.get("guardrails", True))  # L0 ablation sets this False
     last = state["messages"][-1]
     out: list[dict] = []
     for tc in last.get("tool_calls", []):
@@ -82,7 +84,7 @@ def tools_node(state: AgentState) -> dict:
         except json.JSONDecodeError:
             args = {}
 
-        if name in _GATED:
+        if guardrails and name in _GATED:
             d = guard_write(name, args)
             if tr:
                 tr.decision("guardrail", tool=name, action=d.action, reason=d.reason,

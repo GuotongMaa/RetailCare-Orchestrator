@@ -1,96 +1,83 @@
-"""Minimal action-level eval runner (M1 baseline).
+"""Eval closed loop (M3): data -> run agent (multi-seed) -> trace -> metrics
+(pass^k + CI + compliance) -> error taxonomy -> report.
 
-Each task declares expected_actions (tools that MUST be called) and
-forbidden_actions (tools that must NOT be called) — the tau3 `evaluation_criteria.
-actions` philosophy. A task passes iff all expected tools fired and no forbidden
-tool fired. Produces pass@1 over a single run.
-
-M3 extends this with multi-seed / pass^k / confidence intervals / LLM-judge /
-error taxonomy / cost. Run:  python -m eval.runner
+    python -m eval.runner            # 1 run/task (pass@1 + CI), fast
+    python -m eval.runner 5          # 5 runs/task -> pass^k consistency
 """
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
+from eval.common import RunConfig, run_task_once
+from eval.error_taxonomy import aggregate as tax_aggregate
+from eval.metrics import TaskAgg, aggregate_passk, compliance_metrics
 from retailcare.config import settings, usage
 from retailcare.data.seed import seed
-from retailcare.graph.runtime import Conversation
 
 DATASET = Path("eval/datasets/refund_tasks.jsonl")
 REPORT = Path("reports/baseline_report.md")
+_CFG = RunConfig("L1_default", guardrails=True, auto_confirm=True, policy_mode="prompt")
 
 
 def load_tasks(path: Path = DATASET) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
-def tools_called(conv: Conversation) -> list[str]:
-    return [e.name for e in conv.trace.events if e.kind == "tool_call"]
-
-
-def evaluate_task(task: dict) -> dict:
-    conv = Conversation(user_id=task["user_id"], auto_confirm=True)
-    error = None
-    try:
-        reply = conv.send(task["message"]).reply
-    except Exception as e:  # noqa: BLE001
-        reply, error = "", repr(e)
-    called = set(tools_called(conv))
-    expected = set(task.get("expected_actions", []))
-    forbidden = set(task.get("forbidden_actions", []))
-    missing = expected - called
-    violated = forbidden & called
-    passed = not error and not missing and not violated
-    return {
-        "id": task["id"], "intent": task["intent"], "passed": passed,
-        "missing": sorted(missing), "violated": sorted(violated),
-        "called": sorted(called), "error": error, "reply": reply,
-    }
-
-
-def run(seed_db: bool = True) -> dict:
-    if seed_db:
-        seed(reset=True)
+def run(runs: int = 1) -> dict:
     usage.reset()
     tasks = load_tasks()
-    results = [evaluate_task(t) for t in tasks]
-    passed = sum(r["passed"] for r in results)
+    records: list[dict] = []
+    per_task: dict[str, list[bool]] = {t["id"]: [] for t in tasks}
+    for _ in range(runs):
+        seed(reset=True)
+        for t in tasks:
+            rec = run_task_once(t, _CFG)
+            records.append(rec)
+            per_task[t["id"]].append(rec["success"])
+    aggs = [TaskAgg(tid, len(s), sum(s)) for tid, s in per_task.items()]
     summary = {
-        "model": settings.model, "n": len(tasks), "passed": passed,
-        "pass@1": round(passed / len(tasks), 4) if tasks else 0.0,
-        "usage": usage.snapshot(),
+        "model": settings.model, "runs_per_task": runs,
+        **aggregate_passk(aggs, max_k=runs),
+        "compliance": compliance_metrics(records),
+        "taxonomy": tax_aggregate(records)["counts"],
+        "usage_total": usage.snapshot(),
     }
-    _write_report(summary, results)
-    return {"summary": summary, "results": results}
+    _write_report(summary, per_task, records)
+    return summary
 
 
-def _write_report(summary: dict, results: list[dict]) -> None:
+def _write_report(summary: dict, per_task: dict, records: list[dict]) -> None:
     REPORT.parent.mkdir(parents=True, exist_ok=True)
-    lines = [
-        "# Baseline Report (M1 · L0 single agent)", "",
-        f"- model: `{summary['model']}`",
-        f"- tasks: {summary['n']}  |  passed: {summary['passed']}  |  "
-        f"**pass@1 = {summary['pass@1']}**",
-        f"- usage: {summary['usage']}", "",
-        "| id | intent | pass | called | missing | violated |",
-        "|---|---|---|---|---|---|",
+    passk = " | ".join(f"{k}={summary[k]}" for k in summary if k.startswith("pass^"))
+    c = summary["compliance"]
+    by_task = {tid: f"{sum(s)}/{len(s)}" for tid, s in per_task.items()}
+    L = [
+        "# Baseline Report — L1 single agent (M3 metrics)", "",
+        f"- model: `{summary['model']}`  |  runs/task: {summary['runs_per_task']}  |  "
+        f"tasks: {summary['n_tasks']}",
+        f"- **pass@1 = {summary['pass@1']}** CI95 {summary['pass@1_ci95']}"
+        + (f"  |  {passk}" if passk else ""),
+        f"- policy_violation_rate = **{c['policy_violation_rate']}**  |  "
+        f"unnecessary_handoff_rate = {c['unnecessary_handoff_rate']}  |  "
+        f"escalation_precision = {c['human_escalation_precision']}",
+        f"- avg_turns = {c['avg_turns_to_resolution']}  |  p95_latency = {c['latency_p95_s']}s  |  "
+        f"cost/task = ${c['cost_per_task_usd']}",
+        f"- error taxonomy: {summary['taxonomy'] or 'no failures'}",
+        f"- total usage: {summary['usage_total']}", "",
+        "## Per-task success (successes/runs)", "",
+        "| " + " | ".join(by_task) + " |",
+        "|" + "---|" * len(by_task),
+        "| " + " | ".join(by_task.values()) + " |", "",
+        "> pass@1 is a single/low-run estimate; run more (`python -m eval.runner 5`) for pass^k "
+        "consistency. Statistical noise is real at this task count — CIs are reported.", "",
     ]
-    for r in results:
-        lines.append(
-            f"| {r['id']} | {r['intent']} | {'✅' if r['passed'] else '❌'} | "
-            f"{', '.join(r['called']) or '—'} | {', '.join(r['missing']) or '—'} | "
-            f"{', '.join(r['violated']) or '—'} |"
-        )
-    lines += ["", "> pass@1 is a single-run baseline. M3 reports multi-seed pass^k + CIs.", ""]
-    REPORT.write_text("\n".join(lines))
+    REPORT.write_text("\n".join(L))
 
 
 if __name__ == "__main__":
-    out = run()
-    print(json.dumps(out["summary"], indent=2))
-    for r in out["results"]:
-        flag = "✅" if r["passed"] else "❌"
-        extra = "" if r["passed"] else f"  missing={r['missing']} violated={r['violated']} err={r['error']}"
-        print(f"  {flag} {r['id']} {r['intent']}{extra}")
+    runs = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    out = run(runs=runs)
+    print(json.dumps(out, indent=2))
     print(f"\n📄 report: {REPORT}")

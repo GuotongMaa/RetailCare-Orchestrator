@@ -1,42 +1,16 @@
-# Baseline Report (M1 · L0 single agent)
+# Baseline Report — L1 single agent (M3 metrics)
 
-- model: `deepseek-v4-flash`
-- tasks: 32  |  passed: 32  |  **pass@1 = 1.0**
-- usage: {'calls': 98, 'prompt_tokens': 179087, 'completion_tokens': 18127, 'cost_usd': 0.057758}
+- model: `deepseek-v4-flash`  |  runs/task: 3  |  tasks: 32
+- **pass@1 = 0.9479** CI95 (0.8838, 0.9776)  |  pass^1=0.9479 | pass^2=0.9062 | pass^3=0.875
+- policy_violation_rate = **0.0**  |  unnecessary_handoff_rate = 0.0  |  escalation_precision = 1.0
+- avg_turns = 2.25  |  p95_latency = 12.05s  |  cost/task = $0.001747
+- error taxonomy: {'tool_selection_error': 5, 'missing_param_no_clarify': 1}
+- total usage: {'calls': 286, 'prompt_tokens': 521268, 'completion_tokens': 51889, 'cost_usd': 0.167748}
 
-| id | intent | pass | called | missing | violated |
-|---|---|---|---|---|---|
-| T01 | refund_low_value | ✅ | check_return_eligibility, create_return_request, get_order | — | — |
-| T02 | refund_non_returnable_giftcard | ✅ | check_return_eligibility, get_order, search_policy | — | — |
-| T03 | refund_out_of_window | ✅ | check_return_eligibility, get_order | — | — |
-| T04 | refund_high_value_defective | ✅ | check_return_eligibility, escalate_to_human, get_order | — | — |
-| T05 | refund_high_value_plain | ✅ | check_return_eligibility, escalate_to_human, get_order | — | — |
-| T06 | order_status | ✅ | get_order, get_shipment | — | — |
-| T07 | shipping_exception | ✅ | get_order, get_shipment, search_policy | — | — |
-| T08 | coupons | ✅ | get_coupon | — | — |
-| T09 | refund_low_value | ✅ | check_return_eligibility, create_return_request, get_order | — | — |
-| T10 | refund_boundary_under | ✅ | check_return_eligibility, create_return_request, get_order, search_policy | — | — |
-| T11 | refund_low_value | ✅ | check_return_eligibility, create_return_request, get_order | — | — |
-| T12 | refund_non_returnable_perishable | ✅ | check_return_eligibility, get_order, search_policy | — | — |
-| T13 | refund_not_delivered | ✅ | check_return_eligibility, get_order, get_shipment | — | — |
-| T14 | refund_boundary_over | ✅ | check_return_eligibility, escalate_to_human, get_order | — | — |
-| T15 | refund_low_value_defective | ✅ | check_return_eligibility, escalate_to_human, get_order | — | — |
-| T16 | refund_defective | ✅ | check_return_eligibility, escalate_to_human, get_order, get_shipment | — | — |
-| T17 | order_status | ✅ | get_order, get_shipment | — | — |
-| T18 | order_status | ✅ | get_order, get_shipment | — | — |
-| T19 | shipping | ✅ | get_shipment | — | — |
-| T20 | shipping | ✅ | get_order, get_shipment | — | — |
-| T21 | coupons | ✅ | get_coupon | — | — |
-| T22 | coupons | ✅ | get_coupon | — | — |
-| T23 | policy_question | ✅ | search_policy | — | — |
-| T24 | policy_question | ✅ | search_policy | — | — |
-| T25 | compensation_small | ✅ | get_order, get_shipment, search_policy | — | — |
-| T26 | escalation_complaint | ✅ | escalate_to_human, get_order | — | — |
-| T27 | clarification_needed | ✅ | get_order | — | — |
-| T28 | clarification_needed | ✅ | — | — | — |
-| T29 | order_status_no_overescalate | ✅ | get_order, get_shipment | — | — |
-| T30 | order_status_no_overescalate | ✅ | get_order, get_shipment | — | — |
-| T31 | refund_low_value | ✅ | check_return_eligibility, create_return_request, get_order | — | — |
-| T32 | refund_low_value | ✅ | check_return_eligibility, create_return_request, get_order | — | — |
+## Per-task success (successes/runs)
 
-> pass@1 is a single-run baseline. M3 reports multi-seed pass^k + CIs.
+| T01 | T02 | T03 | T04 | T05 | T06 | T07 | T08 | T09 | T10 | T11 | T12 | T13 | T14 | T15 | T16 | T17 | T18 | T19 | T20 | T21 | T22 | T23 | T24 | T25 | T26 | T27 | T28 | T29 | T30 | T31 | T32 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3/3 | 3/3 | 2/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 1/3 | 3/3 | 2/3 | 3/3 | 2/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+
+> pass@1 is a single/low-run estimate; run more (`python -m eval.runner 5`) for pass^k consistency. Statistical noise is real at this task count — CIs are reported.

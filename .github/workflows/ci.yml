@@ -20,7 +20,11 @@ jobs:
       - name: Lint
         run: ruff check src tests eval
       - name: Unit tests (no real model calls)
-        run: python -m pytest
-        # NOTE: real DeepSeek calls (ping / full eval) are NOT run in CI by default
-        # to avoid cost + secret exposure. To enable, add DEEPSEEK_API_KEY as a repo
-        # secret and a gated job. The eval-regression gate (M3) runs a tiny cassette set.
+        run: PYTHONPATH=src python -m pytest
+
+      - name: Eval-regression gate (model-free safety decisions)
+        run: PYTHONPATH=src python -m eval.regression
+        # Turns the build RED if a guardrail/policy decision regresses (e.g. high-value
+        # refunds stop escalating). No model calls / no secrets — runs on every push.
+        # Full model-based eval (pass^k, ablations) runs locally; to enable in CI add
+        # DEEPSEEK_API_KEY as a repo secret and a gated job.
