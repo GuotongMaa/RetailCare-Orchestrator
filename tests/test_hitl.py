@@ -96,6 +96,26 @@ def test_hitl_interrupt_then_deny_does_not_execute():
     assert _tickets("O1001", "I1") == 0
 
 
+def test_hitl_logs_decisions_to_trace():
+    """Regression: confirm path must log decisions without signature errors."""
+    from retailcare.memory.summary import summarize_trace
+    from retailcare.trace.logger import Trace, set_current
+
+    tr = Trace()
+    set_current(tr)
+    try:
+        graph = _tools_graph()
+        cfg = {"configurable": {"thread_id": "t-trace"}}
+        args = {"order_id": "O1001", "item_id": "I1", "reason": "size", "idempotency_key": "kt"}
+        graph.invoke(_state("create_return_request", args), cfg)
+        graph.invoke(Command(resume="yes"), cfg)
+    finally:
+        set_current(None)
+    kinds = {(e.kind, e.name) for e in tr.events}
+    assert ("decision", "user_confirmed") in kinds
+    assert summarize_trace(tr).outcome == "ticket_created"
+
+
 def test_auto_confirm_executes_without_interrupt():
     graph = _tools_graph()
     cfg = {"configurable": {"thread_id": "t-auto"}}

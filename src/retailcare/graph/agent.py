@@ -103,12 +103,12 @@ def tools_node(state: AgentState) -> dict:
                     "prompt": f"Confirm {name} for ${d.refund_amount}? (yes/no)"})
                 if not _approved(decision):
                     if tr:
-                        tr.decision("hitl", "user_declined", tool=name)
+                        tr.decision("user_declined", tool=name)
                     out.append(_tool_msg(tc_id, name, {"declined": True,
                                "reason": "customer did not confirm the action"}))
                     continue
                 if tr:
-                    tr.decision("hitl", "user_confirmed", tool=name)
+                    tr.decision("user_confirmed", tool=name)
 
         # execute: reads, escalate_to_human, or an approved/auto-confirmed write
         if tr:

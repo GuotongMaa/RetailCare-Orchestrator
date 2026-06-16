@@ -27,11 +27,11 @@ def call_with_recovery(name: str, args: dict, trace=None):
             msg = (f"{name} failed after {attempts} attempts ({mode}); "
                    f"degrade gracefully and escalate_to_human — do not act on uncertain state")
             if trace:
-                trace.decision("recovery", "give_up", tool=name, attempts=attempts)
+                trace.decision("recovery_give_up", tool=name, attempts=attempts)
             return None, msg
 
         if attempts and trace:
-            trace.decision("recovery", "recovered", tool=name, attempts=attempts)
+            trace.decision("recovery_recovered", tool=name, attempts=attempts)
 
         result, err = dispatch(name, args)
         if err:
