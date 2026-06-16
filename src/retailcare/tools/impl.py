@@ -39,6 +39,11 @@ class ToolError(Exception):
     """Raised for not-found / invalid-state conditions (distinct from validation errors)."""
 
 
+# Defect keywords -> RET-004 (defective items need human verification, any value).
+_DEFECT_WORDS = ("defective", "damaged", "broken", "faulty", "defect", "cracked",
+                 "not working", "doesn't work", "stopped working", "won't turn on")
+
+
 # ----------------------------- read tools -----------------------------
 
 
@@ -65,7 +70,8 @@ def get_shipment(inp: GetShipmentIn) -> ShipmentView:
 
 
 def search_policy(inp: SearchPolicyIn) -> list[PolicyChunk]:
-    return store.search(inp.query, k=inp.k)
+    from retailcare.policy import rag
+    return rag.search(inp.query, k=inp.k)
 
 
 def get_coupon(inp: GetCouponIn) -> list[CouponView]:
@@ -100,6 +106,11 @@ def check_return_eligibility(inp: CheckReturnEligibilityIn) -> Eligibility:
                                explanation="return window (30 days) has closed (RET-001)",
                                policy_versions=versions)
         refund = item.price * item.qty
+        if any(w in inp.reason.lower() for w in _DEFECT_WORDS):
+            return Eligibility(
+                eligible=True, reason_code="defective_review",
+                explanation="defective/damaged item requires human verification (RET-004)",
+                refund_amount=refund, requires_human=True, policy_versions=versions)
         high = refund >= store.HIGH_VALUE_THRESHOLD
         return Eligibility(
             eligible=True, reason_code="ok",

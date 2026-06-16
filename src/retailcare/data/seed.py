@@ -67,11 +67,61 @@ def seed(reset: bool = True) -> None:
                        status="exception", last_update=NOW - timedelta(hours=6),
                        eta=NOW + timedelta(days=2)))
 
+        # USER u4 — boundary values around the $200 high-value threshold (RET-003)
+        s.add(Order(order_id="O1004", user_id="u4", status="delivered",
+                    currency="USD", total_amount=400.0, created_at=NOW - timedelta(days=8)))
+        s.add(OrderItem(item_id="I6", order_id="O1004", sku="SKU-HEADPHONE", name="Headphones",
+                        category="electronics", price=199.0, qty=1,
+                        delivered_at=NOW - timedelta(days=5),
+                        returnable_until=NOW + timedelta(days=25)))  # just under threshold
+        s.add(OrderItem(item_id="I7", order_id="O1004", sku="SKU-MONITOR", name="27in Monitor",
+                        category="electronics", price=201.0, qty=1,
+                        delivered_at=NOW - timedelta(days=5),
+                        returnable_until=NOW + timedelta(days=25)))  # just over threshold
+        s.add(Shipment(order_id="O1004", carrier="UPS", tracking_no="1Z999AA10000000001",
+                       status="delivered", last_update=NOW - timedelta(days=5)))
+
+        # USER u4 — perishable (non-returnable) + mid-value apparel (eligible low-value)
+        s.add(Order(order_id="O1005", user_id="u4", status="delivered",
+                    currency="USD", total_amount=105.0, created_at=NOW - timedelta(days=6)))
+        s.add(OrderItem(item_id="I8", order_id="O1005", sku="SKU-COFFEE", name="Fresh Coffee Beans",
+                        category="perishable", price=25.0, qty=1,
+                        delivered_at=NOW - timedelta(days=4),
+                        returnable_until=NOW + timedelta(days=26)))  # perishable -> non-returnable
+        s.add(OrderItem(item_id="I9", order_id="O1005", sku="SKU-JACKET", name="Rain Jacket",
+                        category="apparel", price=80.0, qty=1,
+                        delivered_at=NOW - timedelta(days=4),
+                        returnable_until=NOW + timedelta(days=26)))  # eligible low-value
+        s.add(Shipment(order_id="O1005", carrier="FedEx", tracking_no="7712 0000 0001",
+                       status="delivered", last_update=NOW - timedelta(days=4)))
+
+        # USER u5 — not-yet-delivered order (cannot return) + delivered cheap item
+        s.add(Order(order_id="O1006", user_id="u5", status="shipped",
+                    currency="USD", total_amount=60.0, created_at=NOW - timedelta(days=2)))
+        s.add(OrderItem(item_id="I10", order_id="O1006", sku="SKU-LAMP", name="Desk Lamp",
+                        category="home", price=35.0, qty=1,
+                        delivered_at=None, returnable_until=None))  # not delivered
+        s.add(Shipment(order_id="O1006", carrier="USPS", tracking_no="9400 2000 0001",
+                       status="in_transit", last_update=NOW - timedelta(hours=12),
+                       eta=NOW + timedelta(days=1)))
+
+        # USER u5 — small electronics for defective (low-value defective -> human, RET-004)
+        s.add(Order(order_id="O1007", user_id="u5", status="delivered",
+                    currency="USD", total_amount=49.0, created_at=NOW - timedelta(days=9)))
+        s.add(OrderItem(item_id="I11", order_id="O1007", sku="SKU-EARBUDS", name="Wireless Earbuds",
+                        category="electronics", price=49.0, qty=1,
+                        delivered_at=NOW - timedelta(days=6),
+                        returnable_until=NOW + timedelta(days=24)))
+        s.add(Shipment(order_id="O1007", carrier="UPS", tracking_no="1Z999AA10000000007",
+                       status="delivered", last_update=NOW - timedelta(days=6)))
+
         # coupons
         s.add(Coupon(coupon_id="C1", user_id="u1", code="WELCOME10", kind="percent",
                      value=10.0, status="active", expires_at=NOW + timedelta(days=30)))
         s.add(Coupon(coupon_id="C2", user_id="u2", code="EXPIRED5", kind="fixed",
                      value=5.0, status="expired", expires_at=NOW - timedelta(days=5)))
+        s.add(Coupon(coupon_id="C3", user_id="u4", code="SAVE15", kind="percent",
+                     value=15.0, status="active", expires_at=NOW + timedelta(days=10)))
 
 
 if __name__ == "__main__":

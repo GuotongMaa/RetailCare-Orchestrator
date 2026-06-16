@@ -38,9 +38,9 @@ def run_suite() -> int:
     for i, (intent, user_id, text) in enumerate(SCENARIOS, 1):
         print(f"\n=== [{i}] {intent} — user {user_id} ===")
         print(f"  👤 {text}")
-        conv = Conversation(user_id=user_id)
+        conv = Conversation(user_id=user_id, auto_confirm=True)
         try:
-            reply = conv.send(text)
+            reply = conv.send(text).reply
         except Exception as e:  # noqa: BLE001
             print(f"  ❌ EXCEPTION: {e!r}")
             failures += 1
@@ -59,7 +59,7 @@ def run_suite() -> int:
 
 def chat(user_id: str) -> int:
     seed(reset=False)
-    conv = Conversation(user_id=user_id)
+    conv = Conversation(user_id=user_id)  # interactive: real HITL confirmation
     print(f"chat as {user_id} (ctrl-c to exit)")
     while True:
         try:
@@ -69,7 +69,11 @@ def chat(user_id: str) -> int:
             break
         if not text:
             continue
-        print(f"🤖 {conv.send(text)}")
+        res = conv.send(text)
+        while res.interrupted:
+            ans = input(f"🔐 {res.interrupt.get('prompt', 'Confirm? (yes/no)')} ").strip()
+            res = conv.confirm(ans)
+        print(f"🤖 {res.reply}")
     conv.trace.save()
     return 0
 

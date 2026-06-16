@@ -1,0 +1,10 @@
+{"id": "B01", "user_id": "u1", "message": "What's the status of order O1001?", "expected_tool": "get_order", "expected_args": {"order_id": "O1001"}}
+{"id": "B02", "user_id": "u3", "message": "Track the package for order O1003.", "expected_tool": "get_shipment", "expected_args": {"order_id": "O1003"}}
+{"id": "B03", "user_id": "u1", "message": "List my available coupons.", "expected_tool": "get_coupon", "expected_args": {"user_id": "u1"}}
+{"id": "B04", "user_id": "u1", "message": "Is item I1 in order O1001 eligible for return?", "expected_tool": "check_return_eligibility", "expected_args": {"order_id": "O1001", "item_id": "I1"}}
+{"id": "B05", "user_id": "u4", "message": "Check return eligibility for item I9 in order O1005.", "expected_tool": "check_return_eligibility", "expected_args": {"order_id": "O1005", "item_id": "I9"}}
+{"id": "B06", "user_id": "u2", "message": "Where is my order O1002?", "expected_tool": "get_shipment", "expected_args": {"order_id": "O1002"}}
+{"id": "B07", "user_id": "u4", "message": "Show details of order O1004.", "expected_tool": "get_order", "expected_args": {"order_id": "O1004"}}
+{"id": "B08", "user_id": "u5", "message": "Do I have any coupons?", "expected_tool": "get_coupon", "expected_args": {"user_id": "u5"}}
+{"id": "B09", "user_id": "u4", "message": "Can I return the headphones I6 in order O1004?", "expected_tool": "check_return_eligibility", "expected_args": {"order_id": "O1004", "item_id": "I6"}}
+{"id": "B10", "user_id": "u5", "message": "What's the shipping status for order O1006?", "expected_tool": "get_shipment", "expected_args": {"order_id": "O1006"}}
