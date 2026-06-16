@@ -7,3 +7,6 @@ import tempfile
 os.environ.setdefault(
     "DATABASE_URL", f"sqlite:///{tempfile.gettempdir()}/rc_eval_{os.getpid()}.db"
 )
+os.environ.setdefault(
+    "CHECKPOINT_DB", f"{tempfile.gettempdir()}/rc_ckpt_{os.getpid()}.db"
+)

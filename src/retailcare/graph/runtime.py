@@ -6,6 +6,7 @@ is passed via contextvar, never stored in checkpointed state.
 """
 from __future__ import annotations
 
+import os
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,8 @@ from retailcare.graph.agent import build_agent
 from retailcare.graph.prompts import system_for
 from retailcare.trace.logger import Trace, set_current
 
-_CKPT_PATH = "retailcare_checkpoints.db"
+# Configurable so concurrent eval processes can isolate their checkpoint store.
+_CKPT_PATH = os.getenv("CHECKPOINT_DB", "retailcare_checkpoints.db")
 _conn = sqlite3.connect(_CKPT_PATH, check_same_thread=False)
 _saver = SqliteSaver(_conn)
 try:
