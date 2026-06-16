@@ -30,10 +30,10 @@ def tools_called(conv: Conversation) -> list[str]:
 
 
 def evaluate_task(task: dict) -> dict:
-    conv = Conversation(user_id=task["user_id"])
+    conv = Conversation(user_id=task["user_id"], auto_confirm=True)
     error = None
     try:
-        reply = conv.send(task["message"])
+        reply = conv.send(task["message"]).reply
     except Exception as e:  # noqa: BLE001
         reply, error = "", repr(e)
     called = set(tools_called(conv))

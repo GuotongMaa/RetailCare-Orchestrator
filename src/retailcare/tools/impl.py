@@ -65,7 +65,8 @@ def get_shipment(inp: GetShipmentIn) -> ShipmentView:
 
 
 def search_policy(inp: SearchPolicyIn) -> list[PolicyChunk]:
-    return store.search(inp.query, k=inp.k)
+    from retailcare.policy import rag
+    return rag.search(inp.query, k=inp.k)
 
 
 def get_coupon(inp: GetCouponIn) -> list[CouponView]:

@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: retailcare
+      POSTGRES_PASSWORD: retailcare
+      POSTGRES_DB: retailcare
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retailcare"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadata:/data
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://retailcare:retailcare@postgres:5432/retailcare
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+    env_file:
+      - .claude/.env
+    ports:
+      - "8080:8080"
+    profiles: ["full"]   # `docker compose --profile full up` to run the app too
+
+volumes:
+  pgdata:
+  chromadata:

@@ -6,6 +6,7 @@ error-taxonomy pipeline (project definition v1 §4, §9).
 """
 from __future__ import annotations
 
+import contextvars
 import json
 import time
 import uuid
@@ -13,6 +14,20 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 _TRACE_DIR = Path("trace_logs")
+
+# Current trace for the in-flight graph run. Kept out of graph state so the
+# checkpointer only ever serializes plain JSON-able values.
+_CURRENT: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
+    "current_trace", default=None
+)
+
+
+def set_current(trace: Trace | None) -> None:
+    _CURRENT.set(trace)
+
+
+def get_current() -> Trace | None:
+    return _CURRENT.get()
 
 
 @dataclass

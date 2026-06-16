@@ -1,14 +1,13 @@
 .PHONY: setup test lint ping eval serve demo fmt clean
 
 VENV ?= .venv
-PY := $(VENV)/bin/python
+PY := PYTHONPATH=src $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
 
 setup:                ## create venv + install pinned deps
 	python3 -m venv $(VENV)
 	$(PIP) install -U pip
 	$(PIP) install -r requirements.txt
-	$(PIP) install -e .
 
 test:                 ## run unit tests
 	$(PY) -m pytest
