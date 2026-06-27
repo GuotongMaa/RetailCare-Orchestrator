@@ -15,6 +15,11 @@ RETURN_WINDOW_DAYS = 30
 # Refunds at/above this amount must NOT be auto-approved — require human escalation.
 HIGH_VALUE_THRESHOLD = 200.0
 NON_RETURNABLE_CATEGORIES = {"final_sale", "gift_card", "perishable"}
+# Goodwill compensation (COMP-001): a single payout at/above this needs human approval,
+# AND the per-customer rolling total of issued goodwill may not exceed the cumulative cap
+# (stops many sub-threshold payouts from adding up past the limit).
+COMP_SINGLE_THRESHOLD = 20.0
+COMP_CUMULATIVE_CAP = 50.0
 
 # ----------------------------- policy corpus (versioned) -----------------------------
 _CHUNKS: list[PolicyChunk] = [

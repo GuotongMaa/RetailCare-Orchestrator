@@ -16,6 +16,8 @@ from retailcare.data.seed import seed
 from retailcare.graph.agent import tools_node
 from retailcare.graph.guardrails import guard_write
 from retailcare.graph.state import AgentState
+from retailcare.tools import impl
+from retailcare.tools.schema import IssueCompensationIn
 
 
 @pytest.fixture(autouse=True)
@@ -75,6 +77,25 @@ def test_guard_missing_idempotency_block():
     assert d.action == "block"
 
 
+def test_guard_compensation_small_confirms_under_cap():
+    d = guard_write("issue_compensation",
+                    {"user_id": "u1", "reason": "late", "amount": 5.0, "idempotency_key": "k"})
+    assert d.action == "confirm"
+
+
+def test_guard_compensation_cumulative_cap_escalates():
+    # Issue under-single-threshold comps until the per-user cumulative cap (50) is hit.
+    for i in range(3):
+        impl.issue_compensation(IssueCompensationIn(
+            user_id="u1", reason=f"delay-{i}", amount=15.0, idempotency_key=f"cum-{i}"))
+    # prior = 45; a 4th $15 would total 60 > 50 -> escalate even though 15 < 20
+    d = guard_write("issue_compensation",
+                    {"user_id": "u1", "reason": "again", "amount": 15.0,
+                     "idempotency_key": "cum-new"})
+    assert d.action == "escalate"
+    assert "cumulative" in d.reason.lower()
+
+
 # ---- interrupt / resume ----
 
 def test_hitl_interrupt_then_confirm_executes():
@@ -132,4 +153,68 @@ def test_auto_confirm_executes_without_interrupt():
             "idempotency_key": "k3"}
     res = graph.invoke(_state("create_return_request", args, auto_confirm=True), cfg)
     assert not res.get("__interrupt__")
+    assert _tickets("O1001", "I1") == 1
+
+
+# ---- D7: single-write gate + token binding ----
+
+def _state_multi(calls, user_id, auto_confirm=False, thread_id="t-multi"):
+    tool_calls = [{"id": f"c{i}", "type": "function",
+                   "function": {"name": n, "arguments": json.dumps(a)}}
+                  for i, (n, a) in enumerate(calls)]
+    return {"messages": [{"role": "assistant", "content": "", "tool_calls": tool_calls}],
+            "user_id": user_id, "thread_id": thread_id,
+            "meta": {"auto_confirm": auto_confirm}}
+
+
+def _tool_by_id(res, tc_id):
+    for m in res["messages"]:
+        if m.get("role") == "tool" and m.get("tool_call_id") == tc_id:
+            return json.loads(m["content"])
+    return None
+
+
+def test_hitl_only_one_write_gated_per_run_second_deferred():
+    """Two confirm-writes in one assistant message: first interrupts, on resume it
+    executes and the second is DEFERRED (never a second interrupt in the same run)."""
+    graph = _tools_graph()
+    cfg = {"configurable": {"thread_id": "t-multi"}}
+    calls = [
+        ("create_return_request", {"order_id": "O1004", "item_id": "I6", "reason": "size"}),
+        ("create_return_request", {"order_id": "O1005", "item_id": "I9", "reason": "size"}),
+    ]
+    res = graph.invoke(_state_multi(calls, user_id="u4"), cfg)
+    assert res.get("__interrupt__"), "first confirm-write must interrupt"
+    res2 = graph.invoke(Command(resume="yes"), cfg)
+    assert not res2.get("__interrupt__"), "must NOT interrupt a second time in one run"
+    first = _tool_by_id(res2, "c0")
+    second = _tool_by_id(res2, "c1")
+    assert first and first.get("ticket_id"), "first write executes on confirm"
+    assert second and second.get("deferred") is True, "second write deferred"
+    assert _tickets("O1004", "I6") == 1
+    assert _tickets("O1005", "I9") == 0  # deferred, not written
+
+
+def test_hitl_resume_token_mismatch_is_declined():
+    graph = _tools_graph()
+    cfg = {"configurable": {"thread_id": "t-tok-bad"}}
+    args = {"order_id": "O1001", "item_id": "I1", "reason": "size"}
+    res = graph.invoke(_state_multi([("create_return_request", args)], user_id="u1",
+                                    thread_id="t-tok-bad"), cfg)
+    assert res["__interrupt__"][0].value["token"].startswith("act-")
+    # resume carrying a WRONG token must fail-closed, even though decision says yes
+    res2 = graph.invoke(Command(resume={"decision": "yes", "token": "act-wrong"}), cfg)
+    assert _tool_by_id(res2, "c0").get("declined") is True
+    assert _tickets("O1001", "I1") == 0
+
+
+def test_hitl_resume_token_match_executes():
+    graph = _tools_graph()
+    cfg = {"configurable": {"thread_id": "t-tok-ok"}}
+    args = {"order_id": "O1001", "item_id": "I1", "reason": "size"}
+    res = graph.invoke(_state_multi([("create_return_request", args)], user_id="u1",
+                                    thread_id="t-tok-ok"), cfg)
+    token = res["__interrupt__"][0].value["token"]
+    res2 = graph.invoke(Command(resume={"decision": "yes", "token": token}), cfg)
+    assert _tool_by_id(res2, "c0").get("ticket_id")
     assert _tickets("O1001", "I1") == 1

@@ -104,8 +104,8 @@ def check_return_eligibility(inp: CheckReturnEligibilityIn) -> Eligibility:
             return Eligibility(eligible=False, reason_code="non_returnable_category",
                                explanation=f"category '{item.category}' is non-returnable (RET-002)",
                                policy_versions=versions)
-        from retailcare.data.seed import NOW
-        if item.returnable_until is None or item.returnable_until < NOW:
+        from retailcare import clock
+        if item.returnable_until is None or item.returnable_until < clock.now():
             return Eligibility(eligible=False, reason_code="out_of_window",
                                explanation="return window (30 days) has closed (RET-001)",
                                policy_versions=versions)
@@ -172,6 +172,17 @@ def issue_compensation(inp: IssueCompensationIn) -> CompensationResult:
         _audit(s, "issue_compensation", f"{c.comp_id} amount={c.amount}")
         s.flush()
         return _comp_view(c, deduped=False)
+
+
+def issued_compensation_total(user_id: str, exclude_key: str | None = None) -> float:
+    """Sum of goodwill compensation already issued to a user (for the cumulative cap).
+    Excludes a given idempotency_key so an idempotent retry doesn't count itself."""
+    with session_scope() as s:
+        q = s.query(Compensation).filter(Compensation.user_id == user_id,
+                                         Compensation.status == "issued")
+        if exclude_key:
+            q = q.filter(Compensation.idempotency_key != exclude_key)
+        return float(sum(c.amount for c in q.all()))
 
 
 def escalate_to_human(inp: EscalateToHumanIn) -> Handoff:

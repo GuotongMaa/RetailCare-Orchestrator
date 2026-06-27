@@ -23,7 +23,12 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from retailcare.config import LLMResult, settings, usage
-from retailcare.graph.digest import apply_tool_effect, derive_idempotency_key, render_digest
+from retailcare.graph.digest import (
+    action_token,
+    apply_tool_effect,
+    derive_idempotency_key,
+    render_digest,
+)
 from retailcare.graph.guardrails import guard_write
 from retailcare.graph.prompts import SYSTEM_L0
 from retailcare.graph.state import AgentState
@@ -44,6 +49,20 @@ def _approved(value) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in _APPROVALS
+
+
+def _resume_ok(decision, token: str) -> bool:
+    """Validate an HITL resume value against the action it should authorize (D7).
+
+    Accepts a bare yes/no (back-compat) or a dict {"decision":..., "token":...}.
+    If a token is supplied it must match the action's token, else fail-closed —
+    a 'yes' can never bind to a different action than the one the user confirmed.
+    """
+    if isinstance(decision, dict):
+        if "token" in decision and decision.get("token") != token:
+            return False
+        return _approved(decision.get("decision"))
+    return _approved(decision)
 
 
 def agent_node(state: AgentState) -> dict:
@@ -114,6 +133,7 @@ def tools_node(state: AgentState) -> dict:
     last = state["messages"][-1]
     out: list[dict] = []
     acc: dict = {}  # accumulated structured-state updates for this turn
+    hitl_used = False  # D7: gate at most ONE confirm-write per node run
     for tc in last.get("tool_calls", []):
         name = tc["function"]["name"]
         tc_id = tc["id"]
@@ -146,11 +166,23 @@ def tools_node(state: AgentState) -> dict:
                                    "order/item details and a transcript."}))
                 continue
             if d.action == "confirm" and not auto_confirm:
+                # D7: only one write may be in HITL confirmation per node run. Any
+                # further confirm-writes are deferred so a single resume can never
+                # be matched (by interrupt position) to the wrong action.
+                if hitl_used:
+                    out.append(_tool_msg(tc_id, name, {"deferred": True,
+                               "reason": "another action is awaiting confirmation; "
+                                         "retry this one on the next turn"}))
+                    continue
+                token = action_token(state.get("thread_id"), name, args)
+                if tr:
+                    tr.decision("await_confirmation", tool=name, token=token)
                 decision = interrupt({
                     "type": "confirm_write", "tool": name, "args": args,
-                    "refund_amount": d.refund_amount, "reason": d.reason,
+                    "refund_amount": d.refund_amount, "reason": d.reason, "token": token,
                     "prompt": f"Confirm {name} for ${d.refund_amount}? (yes/no)"})
-                if not _approved(decision):
+                hitl_used = True
+                if not _resume_ok(decision, token):
                     if tr:
                         tr.decision("user_declined", tool=name)
                     out.append(_tool_msg(tc_id, name, {"declined": True,

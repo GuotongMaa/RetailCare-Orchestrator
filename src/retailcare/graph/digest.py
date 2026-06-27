@@ -61,6 +61,14 @@ def derive_idempotency_key(thread_id: str | None, name: str, args: dict) -> str:
     return f"idem-{digest}"
 
 
+def action_token(thread_id: str | None, name: str, args: dict) -> str:
+    """Fingerprint of a specific gated write, used to bind an HITL confirmation to
+    the exact action the user saw (D7). Deterministic so a node re-run on resume
+    recomputes the same token."""
+    basis = (thread_id or "anon", name, json.dumps(args, sort_keys=True, default=str))
+    return "act-" + hashlib.sha256(repr(basis).encode()).hexdigest()[:16]
+
+
 def apply_tool_effect(state: dict, name: str, args: dict, result, error: str | None) -> dict:
     """Derive structured-state updates from one executed tool call.
 

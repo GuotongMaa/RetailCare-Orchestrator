@@ -67,3 +67,46 @@ def test_trace_endpoint_404_for_unknown_session():
     with pytest.raises(HTTPException) as exc:
         appmod.get_trace("no-such-session", user_id="u1")
     assert exc.value.status_code == 404
+
+
+# ---- JWT production auth path (C6) ----
+
+def _hs256_jwt(payload: dict, secret: str) -> str:
+    import base64
+    import hashlib
+    import hmac
+    import json
+
+    def seg(d: dict) -> str:
+        return base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
+
+    head = seg({"alg": "HS256", "typ": "JWT"})
+    body = seg(payload)
+    sig = hmac.new(secret.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode()
+    return f"{head}.{body}.{sig_b64}"
+
+
+def test_jwt_mode_accepts_valid_and_rejects_tampered(monkeypatch):
+    monkeypatch.setenv("RETAILCARE_JWT_SECRET", "topsecret")
+    good = _hs256_jwt({"sub": "u9"}, "topsecret")
+    assert resolve_token(good) == "u9"
+    # wrong secret -> rejected
+    assert resolve_token(_hs256_jwt({"sub": "u9"}, "WRONG")) is None
+    # tampered payload -> signature fails
+    head, body, sig = good.split(".")
+    assert resolve_token(f"{head}.{body}x.{sig}") is None
+    # in JWT mode the demo scheme is disabled
+    assert resolve_token("demo-u1") is None
+
+
+def test_jwt_mode_rejects_expired_and_alg_none(monkeypatch):
+    import base64
+    import json
+    monkeypatch.setenv("RETAILCARE_JWT_SECRET", "topsecret")
+    assert resolve_token(_hs256_jwt({"sub": "u9", "exp": 0}, "topsecret")) is None
+
+    def seg(d):
+        return base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
+    none_tok = f"{seg({'alg': 'none'})}.{seg({'sub': 'u9'})}."
+    assert resolve_token(none_tok) is None

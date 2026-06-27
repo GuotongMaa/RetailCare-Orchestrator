@@ -258,9 +258,15 @@ A 与 B 都改 `tools_node` 注入逻辑,**合并交付**避免改两遍。
   补偿会被视为同一动作(dedup 优先于重复付款);不同笔请用不同 reason。
 - `render_digest` 对畸形 state 加 `isinstance` 容错(每轮都跑,不能崩)。
 
-**未做(阶段 C,后续):**
+**阶段 C 已完成(92 unit + 12 回归全绿):**
 
-- D7 HITL 恢复硬化:`pending_action` 字段已声明,但 **token 绑定 / 单写 gate 尚未接线**,
-  当前多写安全依赖 LangGraph 重跑顺序 + 幂等兜底。需补实现与多写 HITL 测试。
-- D12:Trace 持久化、退货窗口真实 clock、补偿累计上限、checkpointer 连接隔离。
-- MCP 按连接绑定身份(目前 host 为信任边界)。
+- ✅ **C1 / D7 HITL 恢复硬化**:每轮最多 gate 一笔 confirm-write(`hitl_used`),其余 `deferred`;
+  `interrupt` 带 `action_token`,`resume` 支持 `{"decision","token"}` 且 token 不匹配 fail-closed。
+- ✅ **C2 退货窗口可注入时钟**(`clock.now()`:override→`RETAILCARE_NOW`→`utcnow`)。
+- ✅ **C3 补偿按用户累计上限**(`store.COMP_CUMULATIVE_CAP`,排除同 idempotency_key)。
+- ✅ **C4 Trace 持久化**(`trace/store.py` 按 thread_id 落盘,`/trace/thread/{id}` 重启可查 + 归属校验)。
+- ✅ **C5 checkpointer 并发**(`PRAGMA journal_mode=WAL` + `busy_timeout=5000`)。
+- ✅ **C6 认证 JWT 化 + MCP 身份绑定**(`RETAILCARE_JWT_SECRET` 走 HS256 校验;MCP 工具移除
+  `user_id`,由 `RETAILCARE_MCP_USER` 绑定,fail-closed)。
+
+**后续(尚未做):** RS256/JWKS/OIDC、MCP 写操作系统派生幂等、guard↔write 的 TOCTOU 收敛。

@@ -112,6 +112,19 @@ def get_trace(session: str, user_id: str = Depends(current_user)) -> dict:
     raise HTTPException(status_code=404, detail="session not found")
 
 
+@app.get("/trace/thread/{thread_id}")
+def get_trace_by_thread(thread_id: str, user_id: str = Depends(current_user)) -> dict:
+    """Durable trace lookup (survives restart). Ownership enforced from the stored
+    record's user_id, not in-memory session state (D12/D11)."""
+    from retailcare.trace import store as trace_store
+    rec = trace_store.load(thread_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="trace not found")
+    if rec.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="trace does not belong to user")
+    return rec
+
+
 @app.get("/health")
 def health() -> dict:
     return {"ok": True}

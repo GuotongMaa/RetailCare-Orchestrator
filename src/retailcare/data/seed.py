@@ -23,6 +23,11 @@ NOW = datetime(2026, 6, 16, 12, 0, 0)
 
 
 def seed(reset: bool = True) -> None:
+    # The mock world's "now" is the seed epoch — pin the clock so return-window
+    # eligibility is deterministic for tests/eval (clock falls back to wall-clock
+    # in production when no mock data is seeded).
+    from retailcare import clock
+    clock.set_now(NOW)
     init_db()
     with session_scope() as s:
         if reset:

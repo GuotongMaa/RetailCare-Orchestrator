@@ -22,6 +22,12 @@ from retailcare.trace.logger import Trace, set_current
 # Configurable so concurrent eval processes can isolate their checkpoint store.
 _CKPT_PATH = os.getenv("CHECKPOINT_DB", "retailcare_checkpoints.db")
 _conn = sqlite3.connect(_CKPT_PATH, check_same_thread=False)
+# Concurrency hardening (D12): WAL lets readers + a writer coexist; busy_timeout makes
+# concurrent writers wait-and-retry instead of failing with "database is locked" under
+# FastAPI's threadpool. sqlite3 in serialized mode makes sharing this single connection
+# across threads safe; these pragmas remove the remaining lock-contention failure mode.
+_conn.execute("PRAGMA journal_mode=WAL")
+_conn.execute("PRAGMA busy_timeout=5000")
 _saver = SqliteSaver(_conn)
 try:
     _saver.setup()
@@ -59,7 +65,17 @@ class Conversation:
     def _invoke(self, payload) -> TurnResult:
         set_current(self.trace)
         result = _AGENT.invoke(payload, config=self._config)
-        return self._wrap(result)
+        res = self._wrap(result)
+        self._persist_trace()
+        return res
+
+    def _persist_trace(self) -> None:
+        """Durably store the audit trail keyed by thread_id (best-effort)."""
+        try:
+            from retailcare.trace import store as trace_store
+            trace_store.save(self.thread_id, self.user_id, self.trace)
+        except Exception:  # noqa: BLE001 - persistence must never break a turn
+            pass
 
     def send(self, text: str) -> TurnResult:
         self.trace.log("message", "user", text=text)

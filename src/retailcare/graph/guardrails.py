@@ -11,7 +11,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from retailcare.policy import store
-from retailcare.tools.impl import ToolError, check_return_eligibility
+from retailcare.tools.impl import (
+    ToolError,
+    check_return_eligibility,
+    issued_compensation_total,
+)
 from retailcare.tools.schema import CheckReturnEligibilityIn
 
 
@@ -65,8 +69,16 @@ def _guard_compensation(args: dict) -> GuardDecision:
     if not args.get("idempotency_key"):
         return GuardDecision("block", "missing idempotency_key for write operation")
     amount = float(args.get("amount") or 0)
-    if amount >= 20:
-        return GuardDecision("escalate", f"compensation ≥ 20 USD requires human approval "
-                             f"(COMP-001): ${amount}", amount, [store.POLICY_VERSION])
-    return GuardDecision("confirm", "goodwill compensation under 20 USD — confirm with customer",
+    if amount >= store.COMP_SINGLE_THRESHOLD:
+        return GuardDecision("escalate", f"compensation ≥ {store.COMP_SINGLE_THRESHOLD:g} USD "
+                             f"requires human approval (COMP-001): ${amount}",
+                             amount, [store.POLICY_VERSION])
+    # Cumulative cap: many sub-threshold payouts must not add up past the limit.
+    prior = issued_compensation_total(args.get("user_id", ""),
+                                      exclude_key=args.get("idempotency_key"))
+    if prior + amount > store.COMP_CUMULATIVE_CAP:
+        return GuardDecision("escalate", f"cumulative goodwill would exceed "
+                             f"${store.COMP_CUMULATIVE_CAP:g} (COMP-001): ${prior:g} already "
+                             f"issued + ${amount:g}", amount, [store.POLICY_VERSION])
+    return GuardDecision("confirm", "goodwill compensation under cap — confirm with customer",
                          amount, [store.POLICY_VERSION])
