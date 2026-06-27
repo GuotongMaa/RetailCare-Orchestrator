@@ -1,0 +1,15 @@
+.git
+.venv
+.pytest_cache
+.ruff_cache
+.chroma
+__pycache__
+*.pyc
+*.db
+*.db-shm
+*.db-wal
+trace_logs
+reports
+docs/learning/agent-handbook/pages.jsonl
+.claude
+.env

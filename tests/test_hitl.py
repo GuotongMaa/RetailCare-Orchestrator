@@ -34,7 +34,9 @@ def _tools_graph():
 def _state(name, args, auto_confirm=False):
     tc = {"id": "c1", "type": "function",
           "function": {"name": name, "arguments": json.dumps(args)}}
+    # user_id/thread_id are trusted session state; tools_node injects them (D2/D3).
     return {"messages": [{"role": "assistant", "content": "", "tool_calls": [tc]}],
+            "user_id": args.get("user_id"), "thread_id": "t-hitl",
             "meta": {"auto_confirm": auto_confirm}}
 
 
@@ -47,25 +49,29 @@ def _tickets(order_id, item_id):
 
 def test_guard_low_value_confirm():
     d = guard_write("create_return_request",
-                    {"order_id": "O1001", "item_id": "I1", "reason": "size", "idempotency_key": "k"})
+                    {"user_id": "u1", "order_id": "O1001", "item_id": "I1",
+                     "reason": "size", "idempotency_key": "k"})
     assert d.action == "confirm" and d.refund_amount == 29.0
 
 
 def test_guard_high_value_escalate():
     d = guard_write("create_return_request",
-                    {"order_id": "O1002", "item_id": "I4", "reason": "defective", "idempotency_key": "k"})
+                    {"user_id": "u2", "order_id": "O1002", "item_id": "I4",
+                     "reason": "defective", "idempotency_key": "k"})
     assert d.action == "escalate"
 
 
 def test_guard_non_returnable_block():
     d = guard_write("create_return_request",
-                    {"order_id": "O1001", "item_id": "I2", "reason": "x", "idempotency_key": "k"})
+                    {"user_id": "u1", "order_id": "O1001", "item_id": "I2",
+                     "reason": "x", "idempotency_key": "k"})
     assert d.action == "block"
 
 
 def test_guard_missing_idempotency_block():
     d = guard_write("create_return_request",
-                    {"order_id": "O1001", "item_id": "I1", "reason": "size", "idempotency_key": ""})
+                    {"user_id": "u1", "order_id": "O1001", "item_id": "I1",
+                     "reason": "size", "idempotency_key": ""})
     assert d.action == "block"
 
 
@@ -74,7 +80,8 @@ def test_guard_missing_idempotency_block():
 def test_hitl_interrupt_then_confirm_executes():
     graph = _tools_graph()
     cfg = {"configurable": {"thread_id": "t-confirm"}}
-    args = {"order_id": "O1001", "item_id": "I1", "reason": "size", "idempotency_key": "k1"}
+    args = {"user_id": "u1", "order_id": "O1001", "item_id": "I1", "reason": "size",
+            "idempotency_key": "k1"}
     res = graph.invoke(_state("create_return_request", args), cfg)
     assert res.get("__interrupt__"), "expected HITL interrupt"
     assert _tickets("O1001", "I1") == 0, "must not write before confirmation"
@@ -88,7 +95,8 @@ def test_hitl_interrupt_then_confirm_executes():
 def test_hitl_interrupt_then_deny_does_not_execute():
     graph = _tools_graph()
     cfg = {"configurable": {"thread_id": "t-deny"}}
-    args = {"order_id": "O1001", "item_id": "I1", "reason": "size", "idempotency_key": "k2"}
+    args = {"user_id": "u1", "order_id": "O1001", "item_id": "I1", "reason": "size",
+            "idempotency_key": "k2"}
     graph.invoke(_state("create_return_request", args), cfg)
     res2 = graph.invoke(Command(resume="no"), cfg)
     payload = json.loads(res2["messages"][-1]["content"])
@@ -106,7 +114,8 @@ def test_hitl_logs_decisions_to_trace():
     try:
         graph = _tools_graph()
         cfg = {"configurable": {"thread_id": "t-trace"}}
-        args = {"order_id": "O1001", "item_id": "I1", "reason": "size", "idempotency_key": "kt"}
+        args = {"user_id": "u1", "order_id": "O1001", "item_id": "I1", "reason": "size",
+                "idempotency_key": "kt"}
         graph.invoke(_state("create_return_request", args), cfg)
         graph.invoke(Command(resume="yes"), cfg)
     finally:
@@ -119,7 +128,8 @@ def test_hitl_logs_decisions_to_trace():
 def test_auto_confirm_executes_without_interrupt():
     graph = _tools_graph()
     cfg = {"configurable": {"thread_id": "t-auto"}}
-    args = {"order_id": "O1001", "item_id": "I1", "reason": "size", "idempotency_key": "k3"}
+    args = {"user_id": "u1", "order_id": "O1001", "item_id": "I1", "reason": "size",
+            "idempotency_key": "k3"}
     res = graph.invoke(_state("create_return_request", args, auto_confirm=True), cfg)
     assert not res.get("__interrupt__")
     assert _tickets("O1001", "I1") == 1

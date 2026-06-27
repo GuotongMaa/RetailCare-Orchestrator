@@ -6,6 +6,9 @@ so the pipeline never hard-blocks on the vector layer (manual §8.3).
 """
 from __future__ import annotations
 
+import os
+
+from retailcare.config import settings
 from retailcare.policy import store
 from retailcare.tools.schema import PolicyChunk
 
@@ -18,14 +21,20 @@ def _build():
     try:
         import chromadb
 
-        client = chromadb.EphemeralClient()
+        host = os.getenv("CHROMA_HOST")
+        if host:
+            client = chromadb.HttpClient(host=host, port=int(os.getenv("CHROMA_PORT", "8000")))
+            backend = f"chroma-http:{host}:{os.getenv('CHROMA_PORT', '8000')}"
+        else:
+            client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
+            backend = "chroma-persistent"
         col = client.get_or_create_collection("policy", metadata={"hnsw:space": "cosine"})
-        col.add(
+        col.upsert(
             ids=[c.chunk_id for c in store._CHUNKS],
             documents=[c.text for c in store._CHUNKS],
             metadatas=[{"version": c.version} for c in store._CHUNKS],
         )
-        _COLLECTION, _BACKEND = col, "chroma"
+        _COLLECTION, _BACKEND = col, backend
     except Exception:  # noqa: BLE001 - any chroma/onnx failure -> lexical fallback
         _COLLECTION, _BACKEND = None, "lexical"
 

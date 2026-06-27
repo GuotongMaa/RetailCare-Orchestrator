@@ -21,6 +21,7 @@ dist/
 # ---- Data / artifacts ----
 *.sqlite
 *.db
+.chroma/
 data/*.db
 **/chroma_db/
 **/*.index

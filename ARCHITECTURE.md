@@ -6,6 +6,30 @@ single ReAct agent over a typed tool layer, hardened with guardrails + HITL, and
 surrounded by an evaluation harness that decides — with data — whether more structure
 is worth it.
 
+## Core doctrine
+
+RetailCare is not designed as a rigid, pre-scripted workflow. It is a
+**state-grounded ReAct orchestrator**:
+
+- **ReAct-first:** the agent dynamically decides the next business action during the
+  conversation, such as checking an order, tracking shipment, checking policy,
+  clarifying missing information, requesting a refund, issuing compensation, or
+  escalating a complaint.
+- **LangGraph State-governed:** LangGraph is used primarily for shared state,
+  checkpoint, interrupt, and resume. The state must keep the agent grounded in what is
+  known, what was verified by tools, what is pending, and what has already happened,
+  especially across long multi-turn conversations and business-context switches.
+- **System-enforced safety:** model tool calls are treated as operation proposals, not
+  final authority. The backend system decides whether an action executes through
+  schemas, ownership checks, business policy, guardrails, HITL, idempotency, and audit.
+  High-risk writes are checked before execution, never executed first and repaired
+  afterward.
+
+The main upgrade direction is therefore stronger business state and safer recovery,
+not adding fixed nodes for their own sake. More nodes or subgraphs are justified only
+when they improve state grounding, safety boundaries, evaluation clarity, or
+maintainability.
+
 ## Topology derivation (why one agent, not seven)
 
 Per the project definition, agent topology is an experimental outcome, not a premise:

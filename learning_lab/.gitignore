@@ -1,0 +1,11 @@
+# Keep generated learning artifacts out of the main project history unless
+# explicitly promoted or reviewed.
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+outputs/
+*.db
+*.db-shm
+*.db-wal
+trace_logs/
+tmp/

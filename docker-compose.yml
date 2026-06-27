@@ -16,9 +16,9 @@ services:
       retries: 10
 
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:1.5.9
     ports:
-      - "8000:8000"
+      - "${CHROMA_HOST_PORT:-8001}:8000"
     volumes:
       - chromadata:/data
 
@@ -27,12 +27,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      chroma:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql+psycopg2://retailcare:retailcare@postgres:5432/retailcare
       CHROMA_HOST: chroma
       CHROMA_PORT: "8000"
     env_file:
-      - .claude/.env
+      - path: .env
+        required: false
+      - path: .claude/.env
+        required: false
     ports:
       - "8080:8080"
     profiles: ["full"]   # `docker compose --profile full up` to run the app too

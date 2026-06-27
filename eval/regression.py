@@ -13,27 +13,28 @@ import sys
 from retailcare.data.seed import seed
 from retailcare.graph.guardrails import guard_write
 
-# (order_id, item_id, reason, expected_guard_action)
+# (user_id, order_id, item_id, reason, expected_guard_action)
 CASES = [
-    ("O1001", "I1", "wrong size", "confirm"),          # in-window low-value -> confirm
-    ("O1005", "I9", "too big", "confirm"),             # $80 jacket -> confirm
-    ("O1004", "I6", "dont like", "confirm"),           # $199 just under threshold
-    ("O1004", "I7", "dont like", "escalate"),          # $201 just over -> escalate
-    ("O1002", "I4", "defective", "escalate"),          # high-value + defective
-    ("O1007", "I11", "defective", "escalate"),         # low-value but defective (RET-004)
-    ("O1001", "I2", "changed mind", "block"),          # gift card / final-sale
-    ("O1005", "I8", "changed mind", "block"),          # perishable
-    ("O1002", "I3", "changed mind", "block"),          # out of window
-    ("O1006", "I10", "changed mind", "block"),         # not delivered
+    ("u1", "O1001", "I1", "wrong size", "confirm"),          # in-window low-value
+    ("u4", "O1005", "I9", "too big", "confirm"),             # $80 jacket
+    ("u4", "O1004", "I6", "dont like", "confirm"),           # $199 just under
+    ("u4", "O1004", "I7", "dont like", "escalate"),          # $201 just over
+    ("u2", "O1002", "I4", "defective", "escalate"),          # high-value + defective
+    ("u5", "O1007", "I11", "defective", "escalate"),         # low-value defective
+    ("u1", "O1001", "I2", "changed mind", "block"),          # gift card / final-sale
+    ("u4", "O1005", "I8", "changed mind", "block"),          # perishable
+    ("u2", "O1002", "I3", "changed mind", "block"),          # out of window
+    ("u5", "O1006", "I10", "changed mind", "block"),         # not delivered
 ]
 
 
 def main() -> int:
     seed(reset=True)
     failures = []
-    for order_id, item_id, reason, expected in CASES:
+    for user_id, order_id, item_id, reason, expected in CASES:
         d = guard_write("create_return_request", {
-            "order_id": order_id, "item_id": item_id, "reason": reason, "idempotency_key": "x"})
+            "user_id": user_id, "order_id": order_id, "item_id": item_id,
+            "reason": reason, "idempotency_key": "x"})
         ok = d.action == expected
         print(f"  {'✅' if ok else '❌'} {order_id}/{item_id} ({reason}) -> "
               f"{d.action} (expected {expected})")

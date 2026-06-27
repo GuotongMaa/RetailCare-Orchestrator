@@ -8,12 +8,19 @@ from __future__ import annotations
 
 import contextvars
 import json
+import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 _TRACE_DIR = Path("trace_logs")
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_PHONE_RE = re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")
+_SENSITIVE_KEYS = {
+    "api_key", "apikey", "authorization", "password", "secret", "token",
+    "access_token", "refresh_token", "session_token",
+}
 
 # Current trace for the in-flight graph run. Kept out of graph state so the
 # checkpointer only ever serializes plain JSON-able values.
@@ -44,7 +51,8 @@ class Trace:
     events: list[TraceEvent] = field(default_factory=list)
 
     def log(self, kind: str, name: str, **payload) -> None:
-        self.events.append(TraceEvent(kind=kind, name=name, payload=_jsonable(payload)))
+        self.events.append(TraceEvent(kind=kind, name=name,
+                                      payload=_redact(_jsonable(payload))))
 
     # convenience helpers
     def tool_call(self, name: str, args: dict) -> None:
@@ -80,4 +88,20 @@ def _jsonable(obj):
         return {k: _jsonable(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [_jsonable(v) for v in obj]
+    return obj
+
+
+def _redact(obj):
+    """Redact common secrets/PII before traces are stored or exposed."""
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            key = str(k).lower()
+            out[k] = "[REDACTED]" if key in _SENSITIVE_KEYS else _redact(v)
+        return out
+    if isinstance(obj, list):
+        return [_redact(v) for v in obj]
+    if isinstance(obj, str):
+        obj = _EMAIL_RE.sub("[REDACTED_EMAIL]", obj)
+        return _PHONE_RE.sub("[REDACTED_PHONE]", obj)
     return obj

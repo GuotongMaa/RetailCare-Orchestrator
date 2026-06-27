@@ -34,6 +34,7 @@ class ItemView(BaseModel):
 
 
 class GetOrderIn(BaseModel):
+    user_id: str
     order_id: str
 
 
@@ -48,6 +49,7 @@ class OrderView(BaseModel):
 
 
 class GetShipmentIn(BaseModel):
+    user_id: str
     order_id: str
 
 
@@ -86,6 +88,7 @@ class CouponView(BaseModel):
 
 
 class CheckReturnEligibilityIn(BaseModel):
+    user_id: str
     order_id: str
     item_id: str
     reason: str
@@ -104,6 +107,7 @@ class Eligibility(BaseModel):
 
 
 class CreateReturnRequestIn(BaseModel):
+    user_id: str
     order_id: str
     item_id: str
     reason: str

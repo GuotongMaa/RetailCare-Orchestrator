@@ -40,14 +40,15 @@ def guard_write(name: str, args: dict) -> GuardDecision:
 
 
 def _guard_return(args: dict) -> GuardDecision:
-    for f in ("order_id", "item_id", "reason"):
+    for f in ("user_id", "order_id", "item_id", "reason"):
         if not args.get(f):
             return GuardDecision("block", f"missing required field: {f}")
     if not args.get("idempotency_key"):
         return GuardDecision("block", "missing idempotency_key for write operation")
     try:
         elig = check_return_eligibility(CheckReturnEligibilityIn(
-            order_id=args["order_id"], item_id=args["item_id"], reason=args["reason"]))
+            user_id=args["user_id"], order_id=args["order_id"], item_id=args["item_id"],
+            reason=args["reason"]))
     except ToolError as e:
         return GuardDecision("block", str(e))
     if not elig.eligible:

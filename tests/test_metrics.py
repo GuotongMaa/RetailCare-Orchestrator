@@ -1,4 +1,5 @@
 """pass^k estimator + CI (deterministic)."""
+from eval.common import is_policy_violation
 from eval.metrics import TaskAgg, aggregate_passk, compliance_metrics, pass_hat_k, wilson_ci
 
 
@@ -43,3 +44,9 @@ def test_compliance_metrics():
     assert m["policy_violation_rate"] == 0.5
     assert m["unnecessary_handoff_rate"] == 0.5
     assert m["human_escalation_precision"] == 1.0
+
+
+def test_policy_violation_scope_excludes_premature_escalation():
+    assert is_policy_violation(["create_return_request"]) is True
+    assert is_policy_violation(["issue_compensation"]) is True
+    assert is_policy_violation(["escalate_to_human"]) is False

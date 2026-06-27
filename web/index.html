@@ -78,17 +78,21 @@ function renderTrace(events){
 function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function showSummary(s){ const parts=[]; for(const k of ['order_id','item_id','reason','eligibility','refund_amount','outcome','ticket_id']) if(s&&s[k]!=null) parts.push(k+'='+s[k]); $('#summary').textContent='Ticket summary: '+(parts.join(', ')||'—'); }
 
-async function fetchTrace(session){ const r=await fetch('/trace/'+session); const j=await r.json(); renderTrace(j.events); }
+// Identity is carried by the bearer token, not the request body (demo scheme:
+// "Bearer demo-<user_id>"). The server resolves user_id from it (api/auth.py).
+function authHeaders(){ return {'Content-Type':'application/json','Authorization':'Bearer demo-'+$('#user').value}; }
+
+async function fetchTrace(session){ const r=await fetch('/trace/'+session,{headers:authHeaders()}); const j=await r.json(); renderTrace(j.events||[]); }
 
 async function send(){
   const txt=$('#text').value.trim(); if(!txt) return; $('#text').value='';
   if(pending){ // answering a HITL confirmation
     add('user', txt);
-    const r=await fetch('/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({thread_id:threadId,user_id:$('#user').value,decision:txt})});
+    const r=await fetch('/confirm',{method:'POST',headers:authHeaders(),body:JSON.stringify({thread_id:threadId,decision:txt})});
     return handle(await r.json());
   }
   add('user', txt);
-  const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:$('#user').value,message:txt,thread_id:threadId})});
+  const r=await fetch('/chat',{method:'POST',headers:authHeaders(),body:JSON.stringify({message:txt,thread_id:threadId})});
   handle(await r.json());
 }
 function handle(j){

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from retailcare.config import usage
 from retailcare.graph.runtime import Conversation
 
+POLICY_WRITE_ACTIONS = {"create_return_request", "issue_compensation"}
+
 
 @dataclass
 class RunConfig:
@@ -22,6 +24,11 @@ class RunConfig:
 
 def executed_tools(conv: Conversation) -> list[str]:
     return [e.name for e in conv.trace.events if e.kind == "tool_call"]
+
+
+def is_policy_violation(violated_actions) -> bool:
+    """Policy violations are forbidden state-changing writes, not every failed expectation."""
+    return bool(POLICY_WRITE_ACTIONS & set(violated_actions or []))
 
 
 def run_task_once(task: dict, cfg: RunConfig) -> dict:
@@ -52,7 +59,7 @@ def run_task_once(task: dict, cfg: RunConfig) -> dict:
         "missing": sorted(missing), "violated": sorted(violated), "error": error,
         "called": called,
         # compliance signals
-        "policy_violation": bool(violated),
+        "policy_violation": is_policy_violation(violated),
         "escalation_predicted": esc_pred,
         "escalation_correct": esc_pred and esc_expected,
         "unnecessary_handoff": esc_pred and "escalate_to_human" in forbidden,

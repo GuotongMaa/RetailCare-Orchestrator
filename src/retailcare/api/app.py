@@ -7,37 +7,75 @@ GET  /            -> web/index.html (conversation + trace visualizer)
 """
 from __future__ import annotations
 
+import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from retailcare.api.auth import current_user
 from retailcare.data.seed import seed
 from retailcare.graph.runtime import Conversation, resume_existing
 from retailcare.memory.summary import summarize_trace
 
-app = FastAPI(title="RetailCare Orchestrator")
 _WEB = Path(__file__).resolve().parents[3] / "web"
 _SESSIONS: dict[str, Conversation] = {}
 
 
-@app.on_event("startup")
-def _startup() -> None:
-    seed(reset=True)
+def _seed_enabled() -> bool:
+    return os.getenv("RETAILCARE_SEED_ON_STARTUP", "true").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):  # noqa: ARG001
+    if _seed_enabled():
+        seed(reset=True)
+    yield
+
+
+app = FastAPI(title="RetailCare Orchestrator", lifespan=_lifespan)
+
+
+# user_id is intentionally NOT in the request body — it comes from the authenticated
+# bearer token (api/auth.py), so a caller cannot act as another customer (D11).
 class ChatIn(BaseModel):
-    user_id: str
     message: str
     thread_id: str | None = None
 
 
 class ConfirmIn(BaseModel):
     thread_id: str
-    user_id: str
     decision: str
+
+
+def _assert_thread_owner(conv: Conversation, user_id: str) -> None:
+    if conv.user_id != user_id:
+        raise HTTPException(status_code=403, detail="thread_id does not belong to user_id")
+
+
+def _chat_conversation(user_id: str, thread_id: str | None = None) -> Conversation:
+    if thread_id and thread_id in _SESSIONS:
+        conv = _SESSIONS[thread_id]
+        _assert_thread_owner(conv, user_id)
+        return conv
+    conv = Conversation(user_id=user_id, thread_id=thread_id)
+    _SESSIONS[conv.thread_id] = conv
+    return conv
+
+
+def _resume_conversation(user_id: str, thread_id: str) -> Conversation:
+    conv = _SESSIONS.get(thread_id)
+    if conv is None:
+        conv = resume_existing(thread_id, user_id)
+        _SESSIONS[thread_id] = conv
+        return conv
+    _assert_thread_owner(conv, user_id)
+    return conv
 
 
 def _payload(conv: Conversation, res) -> dict:
@@ -53,25 +91,25 @@ def _payload(conv: Conversation, res) -> dict:
 
 
 @app.post("/chat")
-def chat(inp: ChatIn) -> dict:
-    conv = Conversation(user_id=inp.user_id, thread_id=inp.thread_id)
-    _SESSIONS[conv.thread_id] = conv
+def chat(inp: ChatIn, user_id: str = Depends(current_user)) -> dict:
+    conv = _chat_conversation(user_id, inp.thread_id)
     return _payload(conv, conv.send(inp.message))
 
 
 @app.post("/confirm")
-def confirm(inp: ConfirmIn) -> dict:
-    conv = _SESSIONS.get(inp.thread_id) or resume_existing(inp.thread_id, inp.user_id)
-    _SESSIONS[conv.thread_id] = conv
+def confirm(inp: ConfirmIn, user_id: str = Depends(current_user)) -> dict:
+    conv = _resume_conversation(user_id, inp.thread_id)
     return _payload(conv, conv.confirm(inp.decision))
 
 
 @app.get("/trace/{session}")
-def get_trace(session: str) -> dict:
+def get_trace(session: str, user_id: str = Depends(current_user)) -> dict:
     for conv in _SESSIONS.values():
         if conv.trace.session_id == session:
+            if conv.user_id != user_id:
+                raise HTTPException(status_code=403, detail="trace does not belong to user")
             return conv.trace.to_dict()
-    return {"error": "session not found"}
+    raise HTTPException(status_code=404, detail="session not found")
 
 
 @app.get("/health")

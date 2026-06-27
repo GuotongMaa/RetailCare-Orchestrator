@@ -49,9 +49,7 @@ _DEFECT_WORDS = ("defective", "damaged", "broken", "faulty", "defect", "cracked"
 
 def get_order(inp: GetOrderIn) -> OrderView:
     with session_scope() as s:
-        o = s.get(Order, inp.order_id)
-        if not o:
-            raise ToolError(f"order not found: {inp.order_id}")
+        o = _owned_order(s, inp.user_id, inp.order_id)
         # Reflect any return ticket so a follow-up status query isn't stale (tickets
         # are the single source of truth for return state — not duplicated on the item).
         ticket_status = {
@@ -69,6 +67,7 @@ def get_order(inp: GetOrderIn) -> OrderView:
 
 def get_shipment(inp: GetShipmentIn) -> ShipmentView:
     with session_scope() as s:
+        _owned_order(s, inp.user_id, inp.order_id)
         sh = s.get(Shipment, inp.order_id)
         if not sh:
             raise ToolError(f"shipment not found for order: {inp.order_id}")
@@ -91,9 +90,7 @@ def get_coupon(inp: GetCouponIn) -> list[CouponView]:
 def check_return_eligibility(inp: CheckReturnEligibilityIn) -> Eligibility:
     versions = store.all_versions()
     with session_scope() as s:
-        o = s.get(Order, inp.order_id)
-        if not o:
-            raise ToolError(f"order not found: {inp.order_id}")
+        o = _owned_order(s, inp.user_id, inp.order_id)
         item = next((i for i in o.items if i.item_id == inp.item_id), None)
         if not item:
             return Eligibility(eligible=False, reason_code="unknown_item",
@@ -136,6 +133,7 @@ def _audit(s, action: str, detail: str) -> None:
 def create_return_request(inp: CreateReturnRequestIn) -> TicketView:
     """Idempotent: dedups on (order_id, item_id). Returns existing ticket if present."""
     with session_scope() as s:
+        _owned_order(s, inp.user_id, inp.order_id)
         existing = (s.query(Ticket)
                     .filter(Ticket.order_id == inp.order_id, Ticket.item_id == inp.item_id)
                     .first())
@@ -145,7 +143,8 @@ def create_return_request(inp: CreateReturnRequestIn) -> TicketView:
             return _ticket_view(existing, deduped=True)
 
         elig = check_return_eligibility(CheckReturnEligibilityIn(
-            order_id=inp.order_id, item_id=inp.item_id, reason=inp.reason))
+            user_id=inp.user_id, order_id=inp.order_id, item_id=inp.item_id,
+            reason=inp.reason))
         if not elig.eligible:
             raise ToolError(f"not eligible: {elig.reason_code} — {elig.explanation}")
 
@@ -184,6 +183,13 @@ def escalate_to_human(inp: EscalateToHumanIn) -> Handoff:
 
 
 # ----------------------------- view helpers -----------------------------
+
+
+def _owned_order(s, user_id: str, order_id: str) -> Order:
+    o = s.get(Order, order_id)
+    if not o or o.user_id != user_id:
+        raise ToolError(f"order not found or not accessible: {order_id}")
+    return o
 
 
 def _ticket_view(t: Ticket, deduped: bool) -> TicketView:

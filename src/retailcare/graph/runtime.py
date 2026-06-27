@@ -69,8 +69,9 @@ class Conversation:
         else:
             msgs = [{"role": "user", "content": text}]
         return self._invoke({
-            "messages": msgs, "user_id": self.user_id, "model": self.model,
-            "steps": 0, "meta": {"auto_confirm": self.auto_confirm, "guardrails": self.guardrails},
+            "messages": msgs, "user_id": self.user_id, "thread_id": self.thread_id,
+            "model": self.model, "steps": 0,
+            "meta": {"auto_confirm": self.auto_confirm, "guardrails": self.guardrails},
         })
 
     def confirm(self, decision) -> TurnResult:

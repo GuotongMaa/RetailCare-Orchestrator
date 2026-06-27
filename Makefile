@@ -1,4 +1,4 @@
-.PHONY: setup test lint ping eval serve demo fmt clean
+.PHONY: setup test regression lint ping eval serve demo fmt clean
 
 VENV ?= .venv
 PY := PYTHONPATH=src $(VENV)/bin/python
@@ -11,6 +11,10 @@ setup:                ## create venv + install pinned deps
 
 test:                 ## run unit tests
 	$(PY) -m pytest
+	$(PY) -m eval.regression
+
+regression:           ## run model-free safety regression gate
+	$(PY) -m eval.regression
 
 lint:                 ## ruff lint
 	$(VENV)/bin/ruff check src tests eval

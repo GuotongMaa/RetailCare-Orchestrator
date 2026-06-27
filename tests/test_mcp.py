@@ -27,7 +27,7 @@ def test_mcp_lists_eight_tools():
 
 def test_mcp_call_get_order():
     seed(reset=True)
-    result = asyncio.run(mcp.call_tool("get_order", {"order_id": "O1001"}))
+    result = asyncio.run(mcp.call_tool("get_order", {"user_id": "u1", "order_id": "O1001"}))
     payload = json.loads(_text(result))
     assert payload["user_id"] == "u1"
     assert len(payload["items"]) == 2
