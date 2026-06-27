@@ -46,3 +46,23 @@ def test_mcp_fails_closed_without_bound_principal():
     os.environ.pop("RETAILCARE_MCP_USER", None)
     with pytest.raises(Exception):  # noqa: B017 - any failure is fine; must not return data
         asyncio.run(mcp.call_tool("get_order", {"order_id": "O1001"}))
+
+
+def test_mcp_write_idempotency_is_system_derived():
+    # No idempotency_key argument is accepted; repeated identical writes dedup (D3).
+    seed(reset=True)
+    os.environ["RETAILCARE_MCP_USER"] = "u1"
+    try:
+        a = json.loads(_text(asyncio.run(mcp.call_tool(
+            "create_return_request", {"order_id": "O1001", "item_id": "I1", "reason": "size"}))))
+        b = json.loads(_text(asyncio.run(mcp.call_tool(
+            "create_return_request", {"order_id": "O1001", "item_id": "I1", "reason": "size"}))))
+        c1 = json.loads(_text(asyncio.run(mcp.call_tool(
+            "issue_compensation", {"reason": "delay", "amount": 5}))))
+        c2 = json.loads(_text(asyncio.run(mcp.call_tool(
+            "issue_compensation", {"reason": "delay", "amount": 5}))))
+    finally:
+        os.environ.pop("RETAILCARE_MCP_USER", None)
+    assert a["ticket_id"] == b["ticket_id"] and b["deduped"] is True
+    assert a["idempotency_key"].startswith("idem-")
+    assert c1["comp_id"] == c2["comp_id"] and c2["deduped"] is True

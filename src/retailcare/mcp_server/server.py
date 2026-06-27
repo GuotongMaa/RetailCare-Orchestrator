@@ -18,6 +18,7 @@ import os
 
 from mcp.server.fastmcp import FastMCP
 
+from retailcare.graph.digest import derive_idempotency_key
 from retailcare.tools import impl
 from retailcare.tools.schema import (
     CheckReturnEligibilityIn,
@@ -40,6 +41,12 @@ def _mcp_user() -> str:
         raise ValueError("RETAILCARE_MCP_USER not set: the MCP host must bind the "
                          "authenticated principal before serving customer-scoped tools")
     return uid
+
+
+def _mcp_session() -> str:
+    """Session scope for system-derived idempotency keys. The host may set
+    RETAILCARE_MCP_SESSION per ticket; otherwise we scope to the bound user."""
+    return os.getenv("RETAILCARE_MCP_SESSION") or _mcp_user()
 
 
 @mcp.tool()
@@ -78,20 +85,28 @@ def check_return_eligibility(order_id: str, item_id: str, reason: str) -> dict:
 
 
 @mcp.tool()
-def create_return_request(order_id: str, item_id: str, reason: str, idempotency_key: str) -> dict:
-    """WRITE: create a return/refund ticket for the authenticated customer's order."""
+def create_return_request(order_id: str, item_id: str, reason: str) -> dict:
+    """WRITE: create a return/refund ticket for the authenticated customer's order.
+    The idempotency key is system-derived (not a caller argument) — same as the
+    in-process agent (D3)."""
+    uid = _mcp_user()
+    args = {"user_id": uid, "order_id": order_id, "item_id": item_id}
+    key = derive_idempotency_key(_mcp_session(), "create_return_request", args)
     return impl.create_return_request(
-        CreateReturnRequestIn(user_id=_mcp_user(), order_id=order_id, item_id=item_id,
-                              reason=reason, idempotency_key=idempotency_key)
+        CreateReturnRequestIn(user_id=uid, order_id=order_id, item_id=item_id,
+                              reason=reason, idempotency_key=key)
     ).model_dump(mode="json")
 
 
 @mcp.tool()
-def issue_compensation(reason: str, amount: float, idempotency_key: str) -> dict:
-    """WRITE: issue goodwill compensation to the authenticated customer."""
+def issue_compensation(reason: str, amount: float) -> dict:
+    """WRITE: issue goodwill compensation to the authenticated customer.
+    Idempotency key is system-derived from (session, user, reason, amount) (D3)."""
+    uid = _mcp_user()
+    args = {"user_id": uid, "reason": reason, "amount": amount}
+    key = derive_idempotency_key(_mcp_session(), "issue_compensation", args)
     return impl.issue_compensation(
-        IssueCompensationIn(user_id=_mcp_user(), reason=reason, amount=amount,
-                            idempotency_key=idempotency_key)
+        IssueCompensationIn(user_id=uid, reason=reason, amount=amount, idempotency_key=key)
     ).model_dump(mode="json")
 
 

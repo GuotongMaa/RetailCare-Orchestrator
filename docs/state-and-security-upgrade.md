@@ -269,4 +269,5 @@ A 与 B 都改 `tools_node` 注入逻辑,**合并交付**避免改两遍。
 - ✅ **C6 认证 JWT 化 + MCP 身份绑定**(`RETAILCARE_JWT_SECRET` 走 HS256 校验;MCP 工具移除
   `user_id`,由 `RETAILCARE_MCP_USER` 绑定,fail-closed)。
 
-**后续(尚未做):** RS256/JWKS/OIDC、MCP 写操作系统派生幂等、guard↔write 的 TOCTOU 收敛。
+**后续(尚未做):** RS256/JWKS/OIDC、guard↔write 的 TOCTOU 收敛。
+(MCP 写操作的系统派生幂等已补齐,与 in-process agent 统一。)

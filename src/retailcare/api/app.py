@@ -1,9 +1,13 @@
 """FastAPI service: chat endpoint with HITL + trace exposure, and a static web UI.
 
-POST /chat       {user_id, message, thread_id?}            -> reply | interrupt
-POST /confirm    {thread_id, user_id, decision}            -> reply (resume HITL)
-GET  /trace/{session}                                       -> structured trace JSON
-GET  /            -> web/index.html (conversation + trace visualizer)
+Identity is taken from the `Authorization: Bearer <token>` header (api/auth.py), never
+from the request body — the API is the trust boundary for user_id (D11).
+
+POST /chat                {message, thread_id?}        + Bearer  -> reply | interrupt
+POST /confirm             {thread_id, decision}        + Bearer  -> reply (resume HITL)
+GET  /trace/{session}                                  + Bearer  -> trace JSON (in-memory)
+GET  /trace/thread/{id}                                + Bearer  -> durable trace (survives restart)
+GET  /                    -> web/index.html (conversation + trace visualizer)
 """
 from __future__ import annotations
 
