@@ -4,13 +4,13 @@
 
 | model | pass@1 (CI95) | cost/task | p95 | violations |
 |---|---|---|---|---|
-| `deepseek-v4-pro` | 0.8 (0.584, 0.9193) | $0.001999 | 19.065s | 0.0 |
-| `deepseek-v4-flash` | 0.95 (0.7639, 0.9911) | $0.00225 | 15.057s | 0.0 |
+| `deepseek-v4-pro` | 0.85 (0.6396, 0.9476) | $0.001912 | 19.663s | 0.0 |
+| `deepseek-v4-flash` | 0.95 (0.7639, 0.9911) | $0.002188 | 12.257s | 0.0 |
 
 ## Pareto (quality vs cost)
 ```
-   deepseek-v4-pro  q=0.800  $0.00200  ███████████████████████████████████
- deepseek-v4-flash  q=0.950  $0.00225  ████████████████████████████████████████
+   deepseek-v4-pro  q=0.850  $0.00191  ██████████████████████████████████
+ deepseek-v4-flash  q=0.950  $0.00219  ████████████████████████████████████████
 ```
 
 > Cost-aware evaluation (2026): route low-risk reads to the cheap model, keep the strong model for high-risk refund reasoning, and pick the point on this frontier.

@@ -6,15 +6,15 @@
 
 | config | pass@1 (CI95) | pass^k | policy_violation_rate | unnecessary_handoff | p95 latency | cost/task |
 |---|---|---|---|---|---|---|
-| L0_no_guardrails | 0.7667 (0.5907, 0.8821) | pass^3=0.7 | **0.0** | 0.0 | 14.78s | $0.002328 |
-| L1_guardrails | 0.7 (0.5212, 0.8334) | pass^3=0.6 | **0.0** | 0.0 | 13.39s | $0.002208 |
-| L1_policy_rag | 0.7667 (0.5907, 0.8821) | pass^3=0.6 | **0.0** | 0.0 | 14.196s | $0.002049 |
+| L0_no_guardrails | 0.7333 (0.5555, 0.8582) | pass^3=0.6 | **0.0** | 0.0 | 13.208s | $0.002238 |
+| L1_guardrails | 0.7 (0.5212, 0.8334) | pass^3=0.5 | **0.0** | 0.0 | 12.112s | $0.002124 |
+| L1_policy_rag | 0.7 (0.5212, 0.8334) | pass^3=0.6 | **0.0** | 0.0 | 14.536s | $0.00214 |
 
 ## Error taxonomy by config
 
-- **L0_no_guardrails**: {'tool_selection_error': 7}
-- **L1_guardrails**: {'answer_tool_inconsistency': 1, 'tool_selection_error': 8}
-- **L1_policy_rag**: {'answer_tool_inconsistency': 1, 'tool_selection_error': 6, 'missing_param_no_clarify': 2}
+- **L0_no_guardrails**: {'tool_selection_error': 8, 'missing_param_no_clarify': 1}
+- **L1_guardrails**: {'tool_selection_error': 9, 'missing_param_no_clarify': 1}
+- **L1_policy_rag**: {'tool_selection_error': 9, 'missing_param_no_clarify': 1}
 
 ## Honest reading
 

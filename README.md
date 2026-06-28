@@ -47,16 +47,18 @@ pytest + eval-regression CI · Docker Compose.
 
 ## Results
 
-Post-upgrade run on the current code (DeepSeek v4-flash). Also covered by **93 unit tests +
-a 12-case model-free regression gate** (both green).
+Post-upgrade run on the current code (DeepSeek v4-flash). **63 end-to-end tasks across 5
+suites**, plus **93 unit tests + a 12-case model-free regression gate** (all green).
 
-- **Reliability**: self-built 35-task refund eval, runs=3 → **pass^1 0.914 / pass^2 0.886 / pass^3 0.857** (CI95 0.845–0.954), **policy-violation-rate 0**, escalation-precision 1.0, unnecessary-handoff 0, **$0.0018/task**.
-- **Tool-calling (BFCL-style, n=10)**: tool-accuracy 0.80 / argument-accuracy 0.80.
-- **Cost×quality (Pareto, n=10)**: flash 0.95 @ $0.0023 vs pro 0.80 @ $0.0020 per task (placeholder per-token pricing).
-- **Ablation (L0 / L1 / L1+RAG, 10-task safety subset)**: **policy-violation-rate 0 across all configs**; pass@1 differences are within CI at this sample size. The guardrail layer is **defense-in-depth** (code-enforced), validated by the regression gate + security tests rather than separable on this small subset.
-- **Safety**: idempotent refunds, HITL confirmation (token-bound), cross-session resume, fault-injection recovery, model-free **regression CI** (verified to catch an injected policy regression).
+- **Reliability** (refund, 35 tasks ×3): **pass^1 0.886 / pass^2 0.848 / pass^3 0.829** (CI95 0.811–0.933), **policy-violation-rate 0**, escalation-precision 1.0, unnecessary-handoff 0, **$0.0017/task**.
+- **Security — adversarial end-to-end** (8 tasks ×3): **injection-resisted-rate 1.0** (resisted^3 = 1.0), **0 forbidden writes** under prompt-injection / identity-spoofing / fake-system / data-exfiltration. Direct evidence for the D2/D3 trust boundary.
+- **HITL end-to-end** (4 scenarios): **hitl-correct-rate 1.0** — every *confirm* writes exactly one ticket, every *decline* writes nothing, the interrupt always fires.
+- **Multi-turn / business-switch** (6 tasks ×2): **pass@1 0.917**; state stays grounded on the right order across switch-away-and-back (exercises the structured-state + digest layer).
+- **Tool-calling (BFCL-style, n=10)**: tool/argument accuracy 0.70 — known gap: the model sometimes answers "is X eligible?" without first calling `check_return_eligibility`.
+- **Cost×quality (Pareto, n=10)**: flash 0.95 @ $0.0022 vs pro 0.85 @ $0.0019 per task (placeholder per-token pricing).
+- **Ablation (L0 / L1 / L1+RAG)**: **policy-violation-rate 0 across all configs**; pass@1 within CI at this sample size — the guardrail layer is **defense-in-depth** (code-enforced), proven by the regression gate + security suite rather than separable here.
 
-See [`reports/`](reports/) for `baseline_report.md`, `ablation_report.md`, `error_taxonomy.md`, `bfcl_report.md`, `pareto_report.md`.
+See [`reports/`](reports/): `baseline_report.md`, `security_report.md`, `hitl_report.md`, `multiturn_report.md`, `ablation_report.md`, `bfcl_report.md`, `pareto_report.md`, `error_taxonomy.md`.
 
 ## Quickstart
 
@@ -92,7 +94,8 @@ SQLite + embedded Chroma (same code, via SQLAlchemy + Chroma persistent client).
 src/retailcare/      agent (graph/) · tools (registry/impl/schema) · policy (RAG+store)
                      · api (FastAPI+auth) · mcp_server · trace · memory · clock · config
 tests/               93 unit tests (no network)
-eval/                harness + datasets/ (bfcl_style, refund_tasks, security_tasks)
+eval/                harness + datasets/ (refund, bfcl, security, multiturn) + runners
+                     (runner/security/multiturn/hitl_eval/bfcl/experiments)
 reports/             evaluation reports (pre-upgrade baseline)
 web/                 single-file chat + live trace UI
 ARCHITECTURE.md · BUSINESS_RULES.md   top-level design & policy

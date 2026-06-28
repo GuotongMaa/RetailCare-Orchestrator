@@ -1,4 +1,4 @@
-.PHONY: setup test regression lint ping eval serve demo fmt clean
+.PHONY: setup test regression lint ping eval eval-security eval-multiturn eval-hitl eval-full serve demo fmt clean
 
 VENV ?= .venv
 PY := PYTHONPATH=src $(VENV)/bin/python
@@ -26,8 +26,26 @@ fmt:                  ## ruff autofix + format
 ping:                 ## smoke-test the configured DeepSeek model (real call)
 	$(PY) -m retailcare.config --ping
 
-eval:                 ## run the eval closed loop (M3+)
+eval:                 ## run the eval closed loop (refund pass^k)
 	$(PY) -m eval.runner
+
+eval-security:        ## adversarial end-to-end: injection/IDOR resistance (D2/D3)
+	$(PY) -m eval.security 3
+
+eval-multiturn:       ## multi-turn / business-switch state-grounding (B)
+	$(PY) -m eval.multiturn 2
+
+eval-hitl:            ## HITL confirm/decline controls the write (model-based)
+	$(PY) -m eval.hitl_eval
+
+eval-full:            ## full suite: pass^k + ablations + bfcl + pareto + security + multiturn + hitl
+	$(PY) -m eval.runner 3
+	$(PY) -m eval.experiments.run_ablations 3
+	$(PY) -m eval.bfcl
+	$(PY) -m eval.experiments.pareto 2
+	$(PY) -m eval.security 3
+	$(PY) -m eval.multiturn 2
+	$(PY) -m eval.hitl_eval
 
 serve:                ## run FastAPI service (M1+)
 	$(VENV)/bin/uvicorn retailcare.api.app:app --reload --app-dir src
