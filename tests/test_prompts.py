@@ -23,6 +23,14 @@ def test_prompts_do_not_leak_identity_or_ask_model_for_user_id():
         assert "authenticated customer" in text  # states the boundary instead
 
 
+def test_prompts_require_eligibility_check_before_answering():
+    """Eligibility/refundability questions must route through check_return_eligibility."""
+    for prompt in (SYSTEM_L0, SYSTEM_RAG):
+        text = prompt.lower()
+        assert "check_return_eligibility first" in text
+        assert "is x refundable" in text or "is x eligible" in text
+
+
 def test_rag_prompt_treats_retrieved_chunks_as_data():
     text = SYSTEM_RAG.lower()
     assert "retrieved policy chunks" in text

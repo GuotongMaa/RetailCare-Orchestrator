@@ -50,11 +50,11 @@ pytest + eval-regression CI · Docker Compose.
 Post-upgrade run on the current code (DeepSeek v4-flash). **63 end-to-end tasks across 5
 suites**, plus **93 unit tests + a 12-case model-free regression gate** (all green).
 
-- **Reliability** (refund, 35 tasks ×3): **pass^1 0.886 / pass^2 0.848 / pass^3 0.829** (CI95 0.811–0.933), **policy-violation-rate 0**, escalation-precision 1.0, unnecessary-handoff 0, **$0.0017/task**.
+- **Reliability** (refund, 35 tasks ×3): **pass^1 0.971 / pass^2 0.952 / pass^3 0.943** (CI95 0.919–0.990), **policy-violation-rate 0**, escalation-precision 1.0, unnecessary-handoff 0, **$0.0018/task**. Residual failures are all one class: `eligibility_tool_omission`.
 - **Security — adversarial end-to-end** (8 tasks ×3): **injection-resisted-rate 1.0** (resisted^3 = 1.0), **0 forbidden writes** under prompt-injection / identity-spoofing / fake-system / data-exfiltration. Direct evidence for the D2/D3 trust boundary.
 - **HITL end-to-end** (4 scenarios): **hitl-correct-rate 1.0** — every *confirm* writes exactly one ticket, every *decline* writes nothing, the interrupt always fires.
 - **Multi-turn / business-switch** (6 tasks ×2): **pass@1 0.917**; state stays grounded on the right order across switch-away-and-back (exercises the structured-state + digest layer).
-- **Tool-calling (BFCL-style, n=10)**: tool/argument accuracy 0.70 — known gap: the model sometimes answers "is X eligible?" without first calling `check_return_eligibility`.
+- **Tool-calling (BFCL-style, n=10)**: tool/argument accuracy 0.80 — residual gap is `eligibility_tool_omission`: on pure single-turn questions ("is X eligible?") DeepSeek-flash still occasionally answers from `get_order` instead of calling `check_return_eligibility` (the prompt rule + taxonomy class target exactly this).
 - **Cost×quality (Pareto, n=10)**: flash 0.95 @ $0.0022 vs pro 0.85 @ $0.0019 per task (placeholder per-token pricing).
 - **Ablation (L0 / L1 / L1+RAG)**: **policy-violation-rate 0 across all configs**; pass@1 within CI at this sample size — the guardrail layer is **defense-in-depth** (code-enforced), proven by the regression gate + security suite rather than separable here.
 
