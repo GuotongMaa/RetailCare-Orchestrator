@@ -110,5 +110,6 @@ per call for the cost-aware (Pareto) view.
 ## Reliability acceptance (the 6 "enterprise closed-loop" checks)
 
 real business rules · end-to-end runnable · observable (trace) · recoverable
-(checkpoint/HITL) · evaluable (benchmark) · regression-guarded (CI). See
-`OPERATIONS_MANUAL.md` §2 for the evidence mapping.
+(checkpoint/HITL) · evaluable (benchmark) · regression-guarded (CI). The
+controllability/security hardening that backs these is detailed in
+[`docs/state-and-security-upgrade.md`](docs/state-and-security-upgrade.md).

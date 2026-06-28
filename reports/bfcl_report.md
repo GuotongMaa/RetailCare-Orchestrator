@@ -1,3 +1,5 @@
+> ⚠️ **升级前基线结果**：本报告是 M1–M4 阶段的评估输出，早于 A/B/C 信任边界 + 结构化 state + 健壮性升级。数据集已对齐新架构；报告重跑待续（需模型 API）。
+
 # BFCL-style Function-Calling Report (M2)
 
 - **tool_call_accuracy = 0.8**  |  **argument_accuracy = 0.8**  (n=10)
