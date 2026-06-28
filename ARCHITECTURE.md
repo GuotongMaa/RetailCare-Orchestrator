@@ -111,5 +111,5 @@ per call for the cost-aware (Pareto) view.
 
 real business rules · end-to-end runnable · observable (trace) · recoverable
 (checkpoint/HITL) · evaluable (benchmark) · regression-guarded (CI). The
-controllability/security hardening that backs these is detailed in
-[`docs/state-and-security-upgrade.md`](docs/state-and-security-upgrade.md).
+controllability/security hardening (A/B/C) that backs these is summarized in the
+README ("Controllability & security upgrade").

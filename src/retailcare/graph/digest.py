@@ -4,7 +4,7 @@ Pure, deterministic, model-free — so it is unit-testable without the network.
 
 - `render_digest(state)`  -> the one-shot text injected into the model each turn.
   It is a *projection* of the structured state, NEVER stored in `messages`
-  (see docs/state-and-security-upgrade.md D1/D9). Capped to keep it cheap.
+  (see the upgrade design notes D1/D9). Capped to keep it cheap.
 - `apply_tool_effect(...)` -> the structured-state updates derived from a real
   tool result (D5: the system maintains state from verified facts, not from what
   the model claims).

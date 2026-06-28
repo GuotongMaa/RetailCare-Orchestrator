@@ -2,7 +2,7 @@
 
 agent_node -> (tool calls?) -> tools_node -> agent_node -> ... -> END
 
-Trust boundary (docs/state-and-security-upgrade.md):
+Trust boundary (the upgrade design notes):
 - Identity (`user_id`) and write idempotency keys are INJECTED by the system from
   trusted session state, never taken from the model's tool arguments (D2/D3).
 - The model receives a one-shot `state digest` each turn for orientation; it is

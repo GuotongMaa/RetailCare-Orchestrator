@@ -38,12 +38,11 @@ eval_results/
 # ---- Node (web frontend) ----
 node_modules/
 
-# ---- Personal notes / interview prep / internal process docs ----
-# Kept on local disk, intentionally excluded from the public repo.
-docs/learning/
+# ---- Personal notes / analysis / interview prep / internal process docs ----
+# Kept on local disk, intentionally excluded from the public repo. The repo ships
+# code + top-level docs (README/ARCHITECTURE/BUSINESS_RULES) + eval; the long-form
+# explanatory/analysis prose under docs/ is personal study & interview material.
+docs/
 learning_lab/
-docs/interview/*.pdf
-docs/interview/0*_*.md
-docs/interview/latest/
 OPERATIONS_MANUAL.md
 RetailCare_Orchestrator_项目定义_v1.md

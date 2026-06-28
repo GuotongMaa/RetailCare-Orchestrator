@@ -1,7 +1,7 @@
 """Prompts. L0 baseline embeds policy directly in the system prompt
 (project definition v1 §10 E3 control arm); M2 / E3 move it to RAG.
 
-Trust boundary (docs/state-and-security-upgrade.md D2/D3): the customer identity
+Trust boundary (the upgrade design notes D2/D3): the customer identity
 (`user_id`) and write idempotency keys are bound by the SYSTEM at the tool boundary,
 not by the model. The prompt therefore never asks the model to supply them, and the
 model is never told who the customer is — it cannot choose or change that.

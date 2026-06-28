@@ -4,7 +4,7 @@ Run as a stdio MCP server:   python -m retailcare.mcp_server.server
 The same typed implementations back both the in-process agent and this server,
 so tools are reusable by any MCP-capable client/IDE.
 
-TRUST BOUNDARY (docs/state-and-security-upgrade.md D11/C6): identity is bound by the
+TRUST BOUNDARY (the upgrade design notes D11/C6): identity is bound by the
 SERVER, not the caller. The MCP host authenticates the principal of the connection and
 exposes it as `RETAILCARE_MCP_USER`; tools read that via `_mcp_user()` and the customer
 id is NEVER a tool argument — exactly like the in-process agent injects `user_id` from

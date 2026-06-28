@@ -1,7 +1,7 @@
 """Authentication: resolve the trusted customer identity from a bearer token.
 
 The API — not the request body, and never the model — is the trust boundary for
-`user_id` (docs/state-and-security-upgrade.md D11/C6).
+`user_id` (the upgrade design notes D11/C6).
 
 Two modes, chosen by environment:
 - **Production**: if `RETAILCARE_JWT_SECRET` is set, bearer tokens are verified as

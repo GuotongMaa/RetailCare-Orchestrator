@@ -1,6 +1,6 @@
 """Agent state for the LangGraph StateGraph.
 
-Two-layer design (see docs/state-and-security-upgrade.md):
+Two-layer design (see the upgrade design notes):
 - These structured fields are the **single source of truth**; code reads them for
   control. Single-value fields use overwrite semantics (last write wins); evidence
   that should accumulate (`findings`) uses a merge reducer.

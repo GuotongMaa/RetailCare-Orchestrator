@@ -35,9 +35,6 @@ A three-phase hardening that closes the gaps between the doctrine above and the 
 | **B** | Structured state | Expanded `AgentState` + merge reducer; **fact-source / digest separation** with per-turn re-render (anti-amnesia, no stale snapshots); single-source HITL gating. |
 | **C** | Robustness & audit | **HITL hardening** (one write gated per run + action-token binding, fail-closed); injectable clock; per-user cumulative compensation cap; **durable trace** (per `thread_id`, survives restart); WAL + busy_timeout concurrency; production JWT (anti alg-confusion) + MCP identity binding. |
 
-Deep dives: [`docs/state-and-security-upgrade.md`](docs/state-and-security-upgrade.md) (design + status) ·
-[`docs/改进对比与新架构.md`](docs/改进对比与新架构.md) (before/after with examples).
-
 > An independent adversarial QA agent reviewed the upgrade and caught a real
 > compensation double-spend (int/float idempotency-key collision), now fixed + regression-tested.
 
@@ -96,6 +93,6 @@ src/retailcare/      agent (graph/) · tools (registry/impl/schema) · policy (R
 tests/               93 unit tests (no network)
 eval/                harness + datasets/ (bfcl_style, refund_tasks, security_tasks)
 reports/             evaluation reports (pre-upgrade baseline)
-docs/                ARCHITECTURE / upgrade design / before-after
 web/                 single-file chat + live trace UI
+ARCHITECTURE.md · BUSINESS_RULES.md   top-level design & policy
 ```

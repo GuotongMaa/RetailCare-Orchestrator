@@ -7,7 +7,7 @@
 3. real wall-clock `datetime.utcnow()` — production against real data.
 
 This replaces the old `from retailcare.data.seed import NOW` hard dependency, which
-froze time even in production (docs/state-and-security-upgrade.md D12).
+froze time even in production (the upgrade design notes D12).
 """
 from __future__ import annotations
 
