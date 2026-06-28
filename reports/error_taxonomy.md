@@ -1,5 +1,3 @@
-> ⚠️ **升级前基线结果**：本报告是 M1–M4 阶段的评估输出，早于 A/B/C 信任边界 + 结构化 state + 健壮性升级。数据集已对齐新架构；报告重跑待续（需模型 API）。
-
 # Error Taxonomy
 
 Trace-level failure labeling for after-sales agent runs. A rule-based classifier
@@ -20,19 +18,19 @@ Trace-level failure labeling for after-sales agent runs. A rule-based classifier
 | `answer_tool_inconsistency` | final reply contradicts tool results |
 | `long_context_forgetting` | lost earlier-confirmed information across turns |
 
-## Observed (M3 ablation — 10 safety-critical tasks × 3 runs)
+## Live counts
 
-| config | tool_selection_error | missing_param_no_clarify | policy_violation |
-|---|---|---|---|
-| L0_no_guardrails | 11 | 2 | 0 |
-| L1_guardrails | 6 | 2 | 0 |
-| L1_policy_rag | 5 | 2 | 0 |
+Per-config taxonomy counts are emitted on every eval run — see the
+**"Error taxonomy by config"** section of [`ablation_report.md`](ablation_report.md)
+and the `error taxonomy:` line of [`baseline_report.md`](baseline_report.md) for the
+current numbers (they change each run, so they are not duplicated here).
 
-**Reading:** failures are dominated by `tool_selection_error` (the agent answering
-without first calling `check_return_eligibility`, or skipping a required lookup),
-and this count falls monotonically as we add guardrails (11→6) and RAG (→5).
-Zero `policy_violation` across configs: on `deepseek-v4-flash` with explicit policy,
-the agent does not over-reach on writes — guardrails' measured value here is improved
-reliability/consistency rather than violation prevention (see `ablation_report.md`).
+**Reading:** failures are dominated by `tool_selection_error` — the agent answering
+without first calling `check_return_eligibility`, or skipping a required lookup.
+`policy_violation` is consistently **0** across configs: on `deepseek-v4-flash` with
+explicit policy the agent does not over-reach on writes, so the guardrail layer's value
+is **defense-in-depth** (a code-enforced net for the cases the model gets wrong — proven
+by the model-free regression gate and the security tests) rather than something this
+small subset can separate by violation count.
 
 > Regenerate counts from any run via `eval.error_taxonomy.aggregate(records)`.

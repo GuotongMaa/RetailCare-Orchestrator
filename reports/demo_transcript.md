@@ -1,5 +1,3 @@
-> ⚠️ **升级前基线结果**：本报告是 M1–M4 阶段的评估输出，早于 A/B/C 信任边界 + 结构化 state + 健壮性升级。数据集已对齐新架构；报告重跑待续（需模型 API）。
-
 # Demo Transcript (`make demo`)
 
 Refund hero flow: HITL confirmation + cross-session resume (real DeepSeek v4-flash).

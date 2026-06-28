@@ -47,15 +47,16 @@ pytest + eval-regression CI · Docker Compose.
 
 ## Results
 
-Eval numbers below are the **pre-upgrade M1–M4 baseline** (DeepSeek v4-flash); datasets are
-now aligned to the upgraded architecture and a rerun is pending. The A/B/C upgrade is covered
-by **93 unit tests + a 12-case model-free regression gate** (both green).
+Post-upgrade run on the current code (DeepSeek v4-flash). Also covered by **93 unit tests +
+a 12-case model-free regression gate** (both green).
 
-- **Reliability**: self-built 32-task refund eval, runs=3 → **pass^1 0.948 / pass^2 0.906 / pass^3 0.875** (CI95 0.884–0.978), **policy-violation-rate 0**, escalation-precision 1.0, **$0.0017/task**.
-- **Ablation (hardening pays off, no new agent)**: L0 pass@1 0.633 → **L1 (guardrails) 0.80** → **L1+RAG 0.833**; tool-selection errors 11→6→5.
-- **Safety**: idempotent refunds, HITL confirmation, cross-session resume, fault-injection recovery, model-free **regression CI** (verified to catch an injected policy regression).
+- **Reliability**: self-built 35-task refund eval, runs=3 → **pass^1 0.914 / pass^2 0.886 / pass^3 0.857** (CI95 0.845–0.954), **policy-violation-rate 0**, escalation-precision 1.0, unnecessary-handoff 0, **$0.0018/task**.
+- **Tool-calling (BFCL-style, n=10)**: tool-accuracy 0.80 / argument-accuracy 0.80.
+- **Cost×quality (Pareto, n=10)**: flash 0.95 @ $0.0023 vs pro 0.80 @ $0.0020 per task (placeholder per-token pricing).
+- **Ablation (L0 / L1 / L1+RAG, 10-task safety subset)**: **policy-violation-rate 0 across all configs**; pass@1 differences are within CI at this sample size. The guardrail layer is **defense-in-depth** (code-enforced), validated by the regression gate + security tests rather than separable on this small subset.
+- **Safety**: idempotent refunds, HITL confirmation (token-bound), cross-session resume, fault-injection recovery, model-free **regression CI** (verified to catch an injected policy regression).
 
-See [`reports/`](reports/) for `baseline_report.md`, `ablation_report.md`, `error_taxonomy.md`, `bfcl_report.md`, `pareto_report.md` (each marked as pre-upgrade baseline).
+See [`reports/`](reports/) for `baseline_report.md`, `ablation_report.md`, `error_taxonomy.md`, `bfcl_report.md`, `pareto_report.md`.
 
 ## Quickstart
 
